@@ -79,12 +79,12 @@ public sealed record EncounterSlot9a(EncounterArea9a Parent, ushort Species, byt
         if (!IsAlpha)
         {
             learn.SetEncounterMoves(level, moves);
-            PlusRecordApplicator.SetPlusFlagsEncounter(pk, pi, plus, level);
+            pk.SetPlusFlagsEncounter(pi, plus, level);
         }
         else
         {
             learn.SetEncounterMovesBackwards(level, moves, sameDescend: false);
-            PlusRecordApplicator.SetPlusFlagsEncounter(pk, pi, plus, level, moves[0] = pi.AlphaMove);
+            pk.SetPlusFlagsEncounter(pi, plus, level, [moves[0] = pi.AlphaMove]);
         }
         pk.SetMoves(moves);
     }
@@ -113,6 +113,8 @@ public sealed record EncounterSlot9a(EncounterArea9a Parent, ushort Species, byt
     public EncounterMatchRating GetMatchRating(PKM pk)
     {
         if (IsAlpha && pk is IPlusRecord pa9 && pk.PersonalInfo is IPermitPlus p && !pa9.GetMovePlusFlag(p.PlusMoveIndexes.IndexOf(PersonalTable.ZA[Species, Form].AlphaMove)))
+            return EncounterMatchRating.DeferredErrors;
+        if (Shiny is Shiny.Never && pk.IsShiny) // Some encounters are shiny locked until a sub-quest is completed.
             return EncounterMatchRating.DeferredErrors;
 
         var pidiv = TryGetSeed(pk, out _);

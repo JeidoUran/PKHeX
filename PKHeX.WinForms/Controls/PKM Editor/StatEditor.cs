@@ -518,14 +518,24 @@ public partial class StatEditor : UserControl
             l.ResetForeColor();
 
         // Set Colored StatLabels only if Nature isn't Neutral
-        var (up, dn) = NatureAmp.GetNatureModification(nature);
-        if (NatureAmp.IsNeutralOrInvalid(nature, up, dn))
+        var (up, dn) = nature.GetNatureModification();
+        if (nature.IsNeutralOrInvalid(up, dn))
             return "-/-";
 
         var incr = L_Stats[up + 1];
         var decr = L_Stats[dn + 1];
-        incr.ForeColor = StatIncreased;
-        decr.ForeColor = StatDecreased;
+
+        var increase = StatIncreased;
+        var decrease = StatDecreased;
+        if (Application.IsDarkModeEnabled)
+        {
+            // Slightly whiten; regular color is too dark.
+            increase = ColorUtil.Blend(increase, SystemColors.ControlText, 0.60f);
+            decrease = ColorUtil.Blend(decrease, SystemColors.ControlText, 0.45f);
+        }
+
+        incr.ForeColor = increase;
+        decr.ForeColor = decrease;
         return $"+{incr.Text} / -{decr.Text}".Replace(":", string.Empty);
     }
 
