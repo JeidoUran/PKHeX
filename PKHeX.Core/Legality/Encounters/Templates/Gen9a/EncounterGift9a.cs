@@ -109,19 +109,19 @@ public sealed record EncounterGift9a(ushort Species, byte Form, byte Level, byte
         {
             pk.SetMoves(Moves);
             pk.GetMoves(moves);
-            PlusRecordApplicator.SetPlusFlagsEncounter(pk, pi, plus, level);
+            pk.SetPlusFlagsEncounter(pi, plus, level);
             return;
         }
 
         if (!IsAlpha)
         {
             learn.SetEncounterMoves(level, moves);
-            PlusRecordApplicator.SetPlusFlagsEncounter(pk, pi, plus, level);
+            pk.SetPlusFlagsEncounter(pi, plus, level);
         }
         else
         {
             learn.SetEncounterMovesBackwards(level, moves, sameDescend: false);
-            PlusRecordApplicator.SetPlusFlagsEncounter(pk, pi, plus, level, moves[0] = pi.AlphaMove);
+            pk.SetPlusFlagsEncounter(pi, plus, level, [moves[0] = pi.AlphaMove]);
         }
         pk.SetMoves(moves);
     }
@@ -204,7 +204,7 @@ public sealed record EncounterGift9a(ushort Species, byte Form, byte Level, byte
         return SeedCorrelationResult.Invalid;
     }
 
-    public LumioseCorrelation Correlation => IsAlpha ? LumioseCorrelation.PreApplyIVs : LumioseCorrelation.ReApplyIVs;
+    public LumioseCorrelation Correlation => IsAlpha ? LumioseCorrelation.PreApplyIVs : IVs.IsSpecified || FlawlessIVCount != 0 ? LumioseCorrelation.ReApplyIVs : LumioseCorrelation.Normal;
 
     public GenerateParam9a GetParams(PersonalInfo9ZA pi)
     {
