@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Threading;
-using static System.Buffers.Binary.BinaryPrimitives;
 using static PKHeX.Core.MessageStrings;
 using static PKHeX.Core.SaveFileType;
+using static System.Buffers.Binary.BinaryPrimitives;
 
 namespace PKHeX.Core;
 
@@ -14,8 +14,9 @@ namespace PKHeX.Core;
 /// </summary>
 public static class SaveUtil
 {
-    private const int SIZE_G9ZA_Min = 0x2F3284;
-    private const int SIZE_G9ZA_Max = 0x2F3284;
+    private const int SIZE_G9ZA_100 = 0x2F3284;
+    private const int SIZE_G9ZA_102 = 0x2F3289; // +5 for Ranked bug fix boolean block
+    private const int SIZE_G9ZA_200 = 0x309FA6; // Mega Dimension DLC
 
     private const int SIZE_G9_0   = 0x31626F; // 1.0.0 fresh
     private const int SIZE_G9_0a  = 0x31627C; // 1.0.0 after multiplayer
@@ -120,7 +121,7 @@ public static class SaveUtil
         new SaveHandlerNSO(),
     ];
 
-    private static bool IsSizeGen9ZA(int length) => length is (>= SIZE_G9ZA_Min) and (<= SIZE_G9ZA_Max);
+    private static bool IsSizeGen9ZA(int length) => length is SIZE_G9ZA_100 or SIZE_G9ZA_102 or SIZE_G9ZA_200;
 
     private static bool IsSizeGen9SV(int length) => length is
         SIZE_G9_0 or SIZE_G9_0a or
@@ -546,29 +547,80 @@ public static class SaveUtil
         return false;
     }
 
-    private static bool TryGetSaveFileHandler(Memory<byte> data, [NotNullWhen(true)] out SaveFile? result, string? path)
+    /// <summary>
+    /// Tries to get the save file from all existing handlers.
+    /// </summary>
+    public static bool TryGetSaveFileHandler(Memory<byte> data, [NotNullWhen(true)] out SaveFile? result, string? path)
     {
         foreach (var h in Handlers)
         {
-            if (!h.IsRecognized(data.Length))
-                continue;
-
-            var split = h.TrySplit(data);
-            if (split is null)
-                continue;
-
-            result = GetSaveFileInternal(split.Data);
-            if (result is null)
-                continue;
-
-            var meta = result.Metadata;
-            meta.SetExtraInfo(split.Header, split.Footer, split.Handler);
-            if (path is not null)
-                meta.SetExtraInfo(path);
-            return true;
+            if (TryGetSaveFileHandler(data, out result, path, h))
+                return true;
         }
         result = null;
         return false;
+    }
+
+    /// <summary>
+    /// Tries to get the save file from all existing handlers using a specific <see cref="SaveTypeInfo"/>.
+    /// </summary>
+    public static bool TryGetSaveFileHandler(Memory<byte> data, [NotNullWhen(true)] out SaveFile? result, string? path, SaveTypeInfo typeInfo)
+    {
+        foreach (var h in Handlers)
+        {
+            if (TryGetSaveFileHandler(data, out result, path, h, typeInfo))
+                return true;
+        }
+        result = null;
+        return false;
+    }
+
+    /// <summary>
+    /// Tries to get the save file from a specific handler.
+    /// </summary>
+    public static bool TryGetSaveFileHandler(Memory<byte> data, [NotNullWhen(true)] out SaveFile? result, string? path, ISaveHandler h)
+    {
+        result = null;
+        if (!h.IsRecognized(data.Length))
+            return false;
+
+        var split = h.TrySplit(data);
+        if (split is null)
+            return false;
+
+        result = GetSaveFileInternal(split.Data);
+        if (result is null)
+            return false;
+
+        var meta = result.Metadata;
+        meta.SetExtraInfo(split.Header, split.Footer, split.Handler);
+        if (path is not null)
+            meta.SetExtraInfo(path);
+        return true;
+    }
+
+    /// <summary>
+    /// Tries to get the save file from a specific handler with specified type info.
+    /// </summary>
+    public static bool TryGetSaveFileHandler(Memory<byte> data, [NotNullWhen(true)] out SaveFile? result, string? path, ISaveHandler h, SaveTypeInfo typeInfo)
+    {
+        result = null;
+        if (!h.IsRecognized(data.Length))
+            return false;
+
+        var split = h.TrySplit(data);
+        if (split is null)
+            return false;
+
+        result = GetSaveFileInternal(data, typeInfo);
+        if (result is null)
+            return false;
+
+        var meta = result.Metadata;
+        meta.SetExtraInfo(split.Header, split.Footer, split.Handler);
+        if (path is not null)
+            meta.SetExtraInfo(path);
+        return true;
     }
 
     private static SaveFile? GetSaveFileInternal(Memory<byte> data)

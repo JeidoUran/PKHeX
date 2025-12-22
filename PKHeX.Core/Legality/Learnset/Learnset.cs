@@ -134,7 +134,7 @@ public sealed class Learnset(ushort[] Moves, byte[] Levels)
 
             if (sameDescend)
             {
-                while(start != 0 && Levels[start] == Levels[start - 1])
+                while (start != 0 && Levels[start] == Levels[start - 1])
                     start--;
             }
 
@@ -143,6 +143,9 @@ public sealed class Learnset(ushort[] Moves, byte[] Levels)
                 var move = Moves[i];
                 if (moves.Contains(move))
                     continue;
+
+                if (Levels[i] == 0)
+                    break; // not a Level Up move
 
                 moves[ctr++] = move;
                 if (ctr == 4)
@@ -228,7 +231,7 @@ public sealed class Learnset(ushort[] Moves, byte[] Levels)
     /// Checks if the specified move is learned by level up.
     /// </summary>
     /// <param name="move">Move ID</param>
-    public bool GetIsLearn(ushort move) => Moves.AsSpan().Contains(move);
+    public bool GetIsLearn(ushort move) => Moves.Contains(move);
 
     /// <summary>
     /// Checks if the specified move is learned by level up.
@@ -238,7 +241,7 @@ public sealed class Learnset(ushort[] Moves, byte[] Levels)
     /// <returns>True if the move is learned by level up, false otherwise.</returns>
     public bool TryGetLevelLearnMove(ushort move, out byte level)
     {
-        var index = Array.IndexOf(Moves, move);
+        var index = Moves.IndexOf(move);
         if (index == -1)
         {
             level = 0;

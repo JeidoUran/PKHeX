@@ -214,7 +214,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
 
     private readonly PictureBox[] relearnPB;
     public SaveFile RequestSaveFile => SaveFileRequested.Invoke(this, EventArgs.Empty);
-    public bool PKMIsUnsaved => FieldsLoaded && LastData.AsSpan().ContainsAnyExcept<byte>(0) && !CurrentPKM.Data.SequenceEqual(LastData);
+    public bool PKMIsUnsaved => FieldsLoaded && LastData.ContainsAnyExcept<byte>(0) && !CurrentPKM.Data.SequenceEqual(LastData);
 
     private readonly MoveChoice[] Moves;
     private readonly ComboBox[] Relearn;
@@ -677,7 +677,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
 
     private void ClickMarking(object sender, EventArgs e)
     {
-        int index = Array.IndexOf(Markings, (PictureBox)sender);
+        int index = Markings.IndexOf((PictureBox)sender);
         Entity.ToggleMarking(index);
         SetMarkings();
     }
@@ -1783,7 +1783,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
             Moves[index].HealPP(Entity);
             Entity.SetMove(index, value);
         }
-        else if ((index = Array.IndexOf(Relearn, cb)) != -1)
+        else if ((index = Relearn.IndexOf(cb)) != -1)
         {
             Entity.SetRelearnMove(index, value);
         }
@@ -2028,7 +2028,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
             L_FormArgument.Visible = false;
         StatusView.Visible = Main.Settings.EntityEditor.ShowStatusCondition;
 
-        DEV_Ability.Enabled = DEV_Ability.Visible = DEV_Ability.TabStop = format > 3 && HaX || t is PA9;
+        DEV_Ability.Enabled = DEV_Ability.Visible = DEV_Ability.TabStop = (format > 3 && HaX) || t is PA9;
         ToggleInterface(Entity.Format);
     }
 

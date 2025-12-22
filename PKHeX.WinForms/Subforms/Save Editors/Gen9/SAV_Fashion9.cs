@@ -162,7 +162,6 @@ public sealed partial class SAV_Fashion9 : Form
         }
     }
 
-
     public IFashionBlockEditor Create(SCBlockAccessor accesor, uint blockLoc, string name, bool hair = false)
     {
         var tab = GetTab(name);
@@ -321,7 +320,8 @@ public sealed class FashionItem9Editor : IFashionBlockEditor
         dgv.RowCount = count;
 
         // Validation for Value column (uint)
-        dgv.CellValidating += (s, e) => {
+        dgv.CellValidating += (s, e) =>
+        {
             if (e.ColumnIndex < 0 || e.RowIndex < 0)
                 return;
             if (dgv.Columns[e.ColumnIndex].Name != ColValue)

@@ -18,7 +18,7 @@ public sealed class MovePPVerifier : Verifier
         VerifyEntity(data);
     }
 
-    private void VerifyEgg(LegalityAnalysis data)
+    private static void VerifyEgg(LegalityAnalysis data)
     {
         var pk = data.Entity;
         if (pk.Move1_PPUps != 0 || pk.Move2_PPUps != 0 || pk.Move3_PPUps != 0 || pk.Move4_PPUps != 0)
@@ -46,7 +46,6 @@ public sealed class MovePPVerifier : Verifier
         ReadOnlySpan<int> ups = [pk.Move1_PPUps, pk.Move2_PPUps, pk.Move3_PPUps, pk.Move4_PPUps];
         ReadOnlySpan<ushort> moves = [pk.Move1, pk.Move2, pk.Move3, pk.Move4];
         ReadOnlySpan<int> pp = [pk.Move1_PP, pk.Move2_PP, pk.Move3_PP, pk.Move4_PP];
-
 
         if (!Legal.IsPPUpAvailable(pk)) // No PP Ups for format
         {

@@ -35,7 +35,7 @@ internal static class BallUseLegality
         8 when GameVersion.BDSP.Contains(version) => WildPokeBalls4_HGSS,
         8 when version is GameVersion.PLA => WildPokeBalls8a,
         8 => GameVersion.GO == version ? WildPokeballs8g_WithRaid : WildPokeballs8,
-        9 when version is GameVersion.ZA => WildPokeballs9a, // Dream Ball and Beast Ball not available
+        9 when version is GameVersion.ZA => WildPokeballs9a,
         9 => WildPokeballs9,
         _ => 0,
     };
@@ -96,5 +96,5 @@ internal static class BallUseLegality
     public const ulong WildPokeballs9 = WildPokeballs8;
     public const ulong WildPokeballs9PreDLC2 = WildPokeballs7 | WildPokeEnhance5; // Same as Gen7 + Dream
 
-    public const ulong WildPokeballs9a = WildPokeBalls4_HGSS | (1 << (int)Sport); // no Safari, Dream, Beast
+    public const ulong WildPokeballs9a = WildPokeballs9;
 }

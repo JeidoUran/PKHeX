@@ -95,6 +95,7 @@ namespace PKHeX.WinForms
             L_LastSaved = new System.Windows.Forms.Label();
             CAL_LastSavedTime = new System.Windows.Forms.DateTimePicker();
             Tab_MiscValues = new System.Windows.Forms.TabPage();
+            B_CollectTechnicalMachines = new System.Windows.Forms.Button();
             B_CollectScrews = new System.Windows.Forms.Button();
             label3 = new System.Windows.Forms.Label();
             L_RoyaleTicketPointsInfinite = new System.Windows.Forms.Label();
@@ -119,6 +120,12 @@ namespace PKHeX.WinForms
             P_Picture1 = new System.Windows.Forms.PictureBox();
             P_Picture2 = new System.Windows.Forms.PictureBox();
             P_Picture3 = new System.Windows.Forms.PictureBox();
+            Tab_DLC = new System.Windows.Forms.TabPage();
+            L_HyperspaceSurveyPoints = new System.Windows.Forms.Label();
+            MT_HyperspaceSurveyPoints = new System.Windows.Forms.MaskedTextBox();
+            B_HyperspaceSurveyPoints = new System.Windows.Forms.Button();
+            TB_StreetName = new System.Windows.Forms.TextBox();
+            L_StreetName = new System.Windows.Forms.Label();
             TC_Editor.SuspendLayout();
             Tab_Overview.SuspendLayout();
             Tab_MiscValues.SuspendLayout();
@@ -132,6 +139,7 @@ namespace PKHeX.WinForms
             ((System.ComponentModel.ISupportInitialize)P_Picture1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)P_Picture2).BeginInit();
             ((System.ComponentModel.ISupportInitialize)P_Picture3).BeginInit();
+            Tab_DLC.SuspendLayout();
             SuspendLayout();
             // 
             // B_Cancel
@@ -372,7 +380,7 @@ namespace PKHeX.WinForms
             CB_Gender.Location = new System.Drawing.Point(298, 13);
             CB_Gender.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             CB_Gender.Name = "CB_Gender";
-            CB_Gender.Size = new System.Drawing.Size(33, 25);
+            CB_Gender.Size = new System.Drawing.Size(46, 25);
             CB_Gender.TabIndex = 22;
             // 
             // TB_MBMS
@@ -619,6 +627,7 @@ namespace PKHeX.WinForms
             TC_Editor.Controls.Add(Tab_Overview);
             TC_Editor.Controls.Add(Tab_MiscValues);
             TC_Editor.Controls.Add(Tab_Images);
+            TC_Editor.Controls.Add(Tab_DLC);
             TC_Editor.Location = new System.Drawing.Point(0, 0);
             TC_Editor.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
             TC_Editor.Name = "TC_Editor";
@@ -700,6 +709,7 @@ namespace PKHeX.WinForms
             // 
             // Tab_MiscValues
             // 
+            Tab_MiscValues.Controls.Add(B_CollectTechnicalMachines);
             Tab_MiscValues.Controls.Add(B_CollectScrews);
             Tab_MiscValues.Controls.Add(label3);
             Tab_MiscValues.Controls.Add(L_RoyaleTicketPointsInfinite);
@@ -718,9 +728,19 @@ namespace PKHeX.WinForms
             Tab_MiscValues.Text = "Misc";
             Tab_MiscValues.UseVisualStyleBackColor = true;
             // 
+            // B_CollectTechnicalMachines
+            // 
+            B_CollectTechnicalMachines.Location = new System.Drawing.Point(365, 210);
+            B_CollectTechnicalMachines.Name = "B_CollectTechnicalMachines";
+            B_CollectTechnicalMachines.Size = new System.Drawing.Size(120, 64);
+            B_CollectTechnicalMachines.TabIndex = 85;
+            B_CollectTechnicalMachines.Text = "Collect All Technical Machines";
+            B_CollectTechnicalMachines.UseVisualStyleBackColor = true;
+            B_CollectTechnicalMachines.Click += B_CollectTechnicalMachines_Click;
+            // 
             // B_CollectScrews
             // 
-            B_CollectScrews.Location = new System.Drawing.Point(365, 106);
+            B_CollectScrews.Location = new System.Drawing.Point(365, 140);
             B_CollectScrews.Name = "B_CollectScrews";
             B_CollectScrews.Size = new System.Drawing.Size(120, 64);
             B_CollectScrews.TabIndex = 85;
@@ -994,6 +1014,73 @@ namespace PKHeX.WinForms
             P_Picture3.TabStop = false;
             P_Picture3.Click += P_Picture3_Click;
             // 
+            // Tab_DLC
+            // 
+            Tab_DLC.Controls.Add(TB_StreetName);
+            Tab_DLC.Controls.Add(L_StreetName);
+            Tab_DLC.Controls.Add(L_HyperspaceSurveyPoints);
+            Tab_DLC.Controls.Add(MT_HyperspaceSurveyPoints);
+            Tab_DLC.Controls.Add(B_HyperspaceSurveyPoints);
+            Tab_DLC.Location = new System.Drawing.Point(4, 26);
+            Tab_DLC.Name = "Tab_DLC";
+            Tab_DLC.Padding = new System.Windows.Forms.Padding(3);
+            Tab_DLC.Size = new System.Drawing.Size(488, 277);
+            Tab_DLC.TabIndex = 6;
+            Tab_DLC.Text = "DLC";
+            Tab_DLC.UseVisualStyleBackColor = true;
+            // 
+            // L_HyperspaceSurveyPoints
+            // 
+            L_HyperspaceSurveyPoints.Location = new System.Drawing.Point(5, 3);
+            L_HyperspaceSurveyPoints.Margin = new System.Windows.Forms.Padding(0);
+            L_HyperspaceSurveyPoints.Name = "L_HyperspaceSurveyPoints";
+            L_HyperspaceSurveyPoints.Size = new System.Drawing.Size(245, 24);
+            L_HyperspaceSurveyPoints.TabIndex = 91;
+            L_HyperspaceSurveyPoints.Text = "Hyperspace Survey Points:";
+            L_HyperspaceSurveyPoints.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
+            // MT_HyperspaceSurveyPoints
+            // 
+            MT_HyperspaceSurveyPoints.Location = new System.Drawing.Point(254, 4);
+            MT_HyperspaceSurveyPoints.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            MT_HyperspaceSurveyPoints.Mask = "0000000";
+            MT_HyperspaceSurveyPoints.Name = "MT_HyperspaceSurveyPoints";
+            MT_HyperspaceSurveyPoints.Size = new System.Drawing.Size(67, 25);
+            MT_HyperspaceSurveyPoints.TabIndex = 89;
+            MT_HyperspaceSurveyPoints.Text = "1234567";
+            MT_HyperspaceSurveyPoints.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // B_HyperspaceSurveyPoints
+            // 
+            B_HyperspaceSurveyPoints.Location = new System.Drawing.Point(325, 4);
+            B_HyperspaceSurveyPoints.Margin = new System.Windows.Forms.Padding(0);
+            B_HyperspaceSurveyPoints.Name = "B_HyperspaceSurveyPoints";
+            B_HyperspaceSurveyPoints.Size = new System.Drawing.Size(23, 23);
+            B_HyperspaceSurveyPoints.TabIndex = 90;
+            B_HyperspaceSurveyPoints.Text = "+";
+            B_HyperspaceSurveyPoints.UseVisualStyleBackColor = true;
+            // 
+            // TB_StreetName
+            // 
+            TB_StreetName.Font = new System.Drawing.Font("Courier New", 8.25F);
+            TB_StreetName.Location = new System.Drawing.Point(254, 39);
+            TB_StreetName.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            TB_StreetName.MaxLength = 18;
+            TB_StreetName.Name = "TB_StreetName";
+            TB_StreetName.Size = new System.Drawing.Size(145, 20);
+            TB_StreetName.TabIndex = 92;
+            TB_StreetName.Text = "WWWWWWWWWWWWWWWWWW";
+            // 
+            // L_StreetName
+            // 
+            L_StreetName.Location = new System.Drawing.Point(9, 35);
+            L_StreetName.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            L_StreetName.Name = "L_StreetName";
+            L_StreetName.Size = new System.Drawing.Size(241, 24);
+            L_StreetName.TabIndex = 93;
+            L_StreetName.Text = "Street Name:";
+            L_StreetName.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
             // SAV_Trainer9a
             // 
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Inherit;
@@ -1024,6 +1111,8 @@ namespace PKHeX.WinForms
             ((System.ComponentModel.ISupportInitialize)P_Picture1).EndInit();
             ((System.ComponentModel.ISupportInitialize)P_Picture2).EndInit();
             ((System.ComponentModel.ISupportInitialize)P_Picture3).EndInit();
+            Tab_DLC.ResumeLayout(false);
+            Tab_DLC.PerformLayout();
             ResumeLayout(false);
         }
 
@@ -1119,6 +1208,13 @@ namespace PKHeX.WinForms
         private System.Windows.Forms.PictureBox P_Picture1;
         private System.Windows.Forms.PictureBox P_Picture2;
         private System.Windows.Forms.PictureBox P_Picture3;
+        private System.Windows.Forms.Button B_CollectTechnicalMachines;
         private System.Windows.Forms.Button B_CollectScrews;
+        private System.Windows.Forms.TabPage Tab_DLC;
+        private System.Windows.Forms.Label L_HyperspaceSurveyPoints;
+        private System.Windows.Forms.MaskedTextBox MT_HyperspaceSurveyPoints;
+        private System.Windows.Forms.Button B_HyperspaceSurveyPoints;
+        private System.Windows.Forms.TextBox TB_StreetName;
+        private System.Windows.Forms.Label L_StreetName;
     }
 }

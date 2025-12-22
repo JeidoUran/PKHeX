@@ -55,15 +55,15 @@ public static class FormArgumentUtil
         /// <summary>
         /// Sets the suggested Form Argument to the <see cref="pk"/>.
         /// </summary>
-        public void SetSuggestedFormArgument(ushort originalSpecies = 0)
+        public void SetSuggestedFormArgument(ushort species, byte form, EntityContext current, EvolutionHistory history, ushort originalSpecies = 0)
         {
             if (pk is not IFormArgument)
                 return;
-            uint value = IsFormArgumentTypeDatePair(pk.Species, pk.Form)
-                ? GetFormArgumentMax(pk.Species, pk.Form, pk.Context)
-                : GetFormArgumentMinEvolution(pk.Species, originalSpecies);
-            if (pk.Species is (int)Hoopa && pk.Format >= 8)
-                value = 0; // S/V does not set the argument for Hoopa
+            uint value = IsFormArgumentTypeDatePair(species, form)
+                ? GetFormArgumentMax(species, form, current)
+                : GetFormArgumentMinEvolution(species, originalSpecies);
+            if (IsFormArgumentAbleToStay0(species, form, history))
+                value = 0;
             pk.ChangeFormArgument(value);
         }
 
@@ -77,6 +77,24 @@ public static class FormArgumentUtil
             f.ChangeFormArgument(pk.Species, pk.Form, pk.Context, value);
         }
     }
+
+    /// <summary>
+    /// Checks if the Form Argument can stay zero due to different games having different uses/behaviors of the value.
+    /// </summary>
+    public static bool IsFormArgumentAbleToStay0(ushort species, byte form, EvolutionHistory history) => species switch
+    {
+        // S/V does not set the argument for Hoopa
+        (int)Hoopa => history.HasVisitedGen9 || history.HasVisitedZA,
+
+        // Does not set the argument for Farfetch'd (Galar)
+        (int)Farfetchd when form == 1 => history.HasVisitedGen9 || history.HasVisitedSWSH,
+        (int)Sirfetchd => history.HasVisitedGen9 || history.HasVisitedSWSH,
+
+        // Z-A does not set the argument for Gimmighoul/Gholdengo
+        (int)Gimmighoul or (int)Gholdengo => history.HasVisitedZA,
+
+        _ => false,
+    };
 
     /// <summary>
     /// Modifies the <see cref="IFormArgument"/> values for the provided inputs to the requested <see cref="value"/>.
@@ -134,6 +152,8 @@ public static class FormArgumentUtil
             (int)Gimmighoul => 998,
             (int)Gholdengo => 999,
             (int)Koraidon or (int)Miraidon => 1,
+            (int)Farfetchd when form == 1 && gen >= 8 => 9999,
+            (int)Sirfetchd when gen >= 8 => 9999,
             _ => 0,
         };
     }
@@ -151,6 +171,7 @@ public static class FormArgumentUtil
         (int)Basculin when currentSpecies == (int)Basculegion => 294u,
         (int)Mankey or (int)Primeape when currentSpecies == (int)Annihilape => 20u,
         (int)Pawniard or (int)Bisharp when currentSpecies == (int)Kingambit => 3u,
+        (int)Farfetchd when currentSpecies == (int)Sirfetchd => 3u,
         (int)Gimmighoul when currentSpecies == (int)Gholdengo => 999u,
         _ => 0u,
     };
