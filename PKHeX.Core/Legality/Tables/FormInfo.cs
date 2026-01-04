@@ -143,7 +143,7 @@ public static class FormInfo
         {
             if (origin == EntityContext.Gen5)
                 return true; // B/W or B2/W2 change via seasons
-            if (current.Generation() >= 8)
+            if (current.Generation >= 8)
                 return true; // Via S/V change via in-game province on startup.
         }
         return false;
@@ -282,6 +282,7 @@ public static class FormInfo
         (int)Barbaracle,
         (int)Dragalge,
         (int)Hawlucha,
+        (int)Zygarde,
         (int)Drampa,
         (int)Falinks,
 

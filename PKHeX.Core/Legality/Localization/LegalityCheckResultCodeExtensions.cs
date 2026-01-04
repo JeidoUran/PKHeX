@@ -10,11 +10,11 @@ public static class LegalityCheckResultCodeExtensions
 {
     extension(LegalityCheckResultCode code)
     {
-        public bool IsArgument() => code is < FirstWithMove and >= FirstWithArgument;
-        public bool IsMove() => code is < FirstWithItem and >= FirstWithMove;
-        public bool IsItem() => code is < FirstWithLanguage and >= FirstWithItem;
-        public bool IsLanguage() => code is < FirstWithMemory and >= FirstWithLanguage;
-        public bool IsMemory() => code is < FirstComplex and >= FirstWithMemory;
+        public bool IsArgument => code is < FirstWithMove and >= FirstWithArgument;
+        public bool IsMove => code is < FirstWithItem and >= FirstWithMove;
+        public bool IsItem => code is < FirstWithLanguage and >= FirstWithItem;
+        public bool IsLanguage => code is < FirstWithMemory and >= FirstWithLanguage;
+        public bool IsMemory => code is < FirstComplex and >= FirstWithMemory;
 
         /// <summary>
         /// Returns the template string for the given result code.
@@ -422,10 +422,10 @@ public static class LegalityCheckResultCodeExtensions
             BulkSharingPIDEncounterType => localization.BulkSharingPIDRNGType,
             BulkDuplicateMysteryGiftEggReceived => localization.BulkDuplicateMysteryGiftEggReceived,
             BulkDuplicateFusionSlot => localization.BulkDuplicateFusionSlot,
-            BulkDuplicateMegaStoneSlot => localization.BulkDuplicateMegaStoneSlot,
-            BulkDuplicateMegaStoneInventory => localization.BulkDuplicateMegaStoneInventory,
-            BulkNotAcquiredMegaStoneInventory => localization.BulkNotAcquiredMegaStoneInventory,
-            BulkAssignedMegaStoneNotFound_0 => localization.BulkAssignedMegaStoneNotFound_0,
+            BulkHeldItemInventoryAssignedNoneHeld_0 => localization.BulkHeldItemInventoryAssignedNoneHeld_0,
+            BulkHeldItemInventoryMultipleSlots_0 => localization.BulkHeldItemInventoryMultipleSlots_0,
+            BulkHeldItemInventoryNotAcquired_0 => localization.BulkHeldItemInventoryNotAcquired_0,
+            BulkHeldItemInventoryUnassigned_0 => localization.BulkHeldItemInventoryUnassigned_0,
             BulkFusionSourceInvalid => localization.BulkFusionSourceInvalid,
             BulkSharingTrainerIDs => localization.BulkSharingTrainerID,
             BulkSharingTrainerVersion => localization.BulkSharingTrainerVersion,

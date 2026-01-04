@@ -25,12 +25,6 @@ public static class GameUtil
     }
 
     /// <summary>
-    /// Indicates if the <see cref="GameVersion"/> value is a value used by the games or is an aggregate indicator.
-    /// </summary>
-    /// <param name="version">Game to check</param>
-    public static bool IsValidSavedVersion(this GameVersion version) => version is > 0 and <= HighestGameID;
-
-    /// <summary>
     /// Most recent game ID utilized by official games.
     /// </summary>
     internal const GameVersion HighestGameID = RB - 1;
@@ -110,40 +104,47 @@ public static class GameUtil
         /// Gets the Generation the <see cref="GameVersion"/> belongs to.
         /// </summary>
         /// <returns>Generation ID</returns>
-        public byte GetGeneration()
+        public byte Generation => version.GetContextInternal().Generation;
+
+        private EntityContext GetContextInternal()
         {
             if (version.IsValidSavedVersion())
-                return version.GetGenerationFromSaved();
+                return version.GetContextFromSaved();
 
-            if (Gen1.Contains(version)) return 1;
-            if (Gen2.Contains(version)) return 2;
-            if (Gen3.Contains(version)) return 3;
-            if (Gen4.Contains(version)) return 4;
-            if (Gen5.Contains(version)) return 5;
-            if (Gen6.Contains(version)) return 6;
-            if (Gen7.Contains(version)) return 7;
-            if (Gen7b.Contains(version)) return 7;
-            if (Gen8.Contains(version)) return 8;
-            if (Gen9.Contains(version)) return 9;
+            if (Gen1.Contains(version)) return EntityContext.Gen1;
+            if (Gen2.Contains(version)) return EntityContext.Gen2;
+            if (Gen3.Contains(version)) return EntityContext.Gen3;
+            if (Gen4.Contains(version)) return EntityContext.Gen4;
+            if (Gen5.Contains(version)) return EntityContext.Gen5;
+            if (Gen6.Contains(version)) return EntityContext.Gen6;
+            if (Gen7.Contains(version)) return EntityContext.Gen7;
+            if (Gen7b.Contains(version)) return EntityContext.Gen7b;
+            if (SWSH.Contains(version)) return EntityContext.Gen8;
+            if (BDSP.Contains(version)) return EntityContext.Gen8b;
+            if (SV.Contains(version)) return EntityContext.Gen9;
             return 0;
         }
 
-        public byte GetGenerationFromSaved() => version switch
+        /// <summary>
+        /// Indicates if the <see cref="GameVersion"/> value is a value used by the games or is an aggregate indicator.
+        /// </summary>
+        public bool IsValidSavedVersion() => version is > 0 and <= HighestGameID;
+
+        public EntityContext GetContextFromSaved() => version switch
         {
-            RD or GN or BU or YW => 1,
-            GD or SI or C => 2,
-            S or R or E or FR or LG or CXD => 3,
-            D or P or Pt or HG or SS or BATREV => 4,
-            B or W or B2 or W2 => 5,
-            X or Y or AS or OR => 6,
-            GP or GE => 7,
-            SN or MN => 7,
-            US or UM => 7,
-            PLA => 8,
-            BD or SP => 8,
-            SW or SH => 8,
-            SL or VL => 9,
-            ZA => 9,
+            S or R or E or FR or LG or CXD => EntityContext.Gen3,
+            D or P or Pt or HG or SS or BATREV => EntityContext.Gen4,
+            B or W or B2 or W2 => EntityContext.Gen5,
+            X or Y or AS or OR => EntityContext.Gen6,
+            SN or MN or US or UM => EntityContext.Gen7,
+            RD or GN or BU or YW => EntityContext.Gen1,
+            GD or SI or C => EntityContext.Gen2,
+            GP or GE => EntityContext.Gen7b,
+            PLA => EntityContext.Gen8a,
+            BD or SP => EntityContext.Gen8b,
+            SW or SH => EntityContext.Gen8,
+            SL or VL => EntityContext.Gen9,
+            ZA => EntityContext.Gen9a,
             _ => 0
         };
 
@@ -259,7 +260,7 @@ public static class GameUtil
     {
         if (Gen7b.Contains(version))
             return [GO, GP, GE];
-        return Array.FindAll(GameVersions, z => z.GetGeneration() == generation);
+        return Array.FindAll(GameVersions, z => z.Generation == generation);
     }
 
     /// <summary>
@@ -284,6 +285,6 @@ public static class GameUtil
         // HOME allows up-reach to Gen9
         if (generation >= 8)
             generation = 9;
-        return versions.Where(version => version.GetGeneration() <= generation);
+        return versions.Where(version => version.Generation <= generation);
     }
 }

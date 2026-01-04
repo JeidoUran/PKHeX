@@ -7,22 +7,22 @@ public static class EntityConverterResultExtensions
 {
     extension(EntityConverterResult result)
     {
-        public bool IsSilent() => result is None or Success;
-        public bool IsSuccess() => result is Success or SuccessIncompatibleManual or SuccessIncompatibleReflection;
+        public bool IsSilent => result is None or Success;
+        public bool IsSuccess => result is Success or SuccessIncompatibleManual or SuccessIncompatibleReflection;
 
         public string GetDisplayString(PKM src, Type dest)
         {
             if (result == None)
                 return "No need to convert, current format matches requested format.";
 
-            var msg = result.IsSuccess() ? MessageStrings.MsgPKMConvertSuccess : MessageStrings.MsgPKMConvertFailFormat;
+            var msg = result.IsSuccess ? MessageStrings.MsgPKMConvertSuccess : MessageStrings.MsgPKMConvertFailFormat;
             var srcName = src.GetType().Name;
             var destName = dest.Name;
             var formatted = string.Format(msg, srcName, destName);
             if (result is Success)
                 return formatted;
 
-            var comment = GetMessage(result, src, dest);
+            var comment = result.GetMessage(src, dest);
             return string.Concat(formatted, Environment.NewLine, comment);
         }
 
@@ -33,7 +33,7 @@ public static class EntityConverterResultExtensions
             IncompatibleForm  => MessageStrings.MsgPKMConvertFailForm,
             NoTransferRoute => MessageStrings.MsgPKMConvertFailNoMethod,
             IncompatibleSpecies => string.Format(MessageStrings.MsgPKMConvertFailFormat, SpeciesName.GetSpeciesNameGeneration(src.Species, src.Language, src.Format), dest.Name),
-            IncompatibleLanguageGB => GetIncompatibleGBMessage(result, src, !src.Japanese),
+            IncompatibleLanguageGB => result.GetIncompatibleGBMessage(src, !src.Japanese),
             _ => throw new ArgumentOutOfRangeException(nameof(result)),
         };
 
