@@ -1,7 +1,5 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-#pragma warning disable CA1857
 
 namespace PKHeX.Core;
 
@@ -71,7 +69,6 @@ public abstract class SAV6 : SAV_BEEF, ITrainerStatRecord, ISaveBlock6Core, IReg
 
     public override uint SecondsToStart { get => GameTime.SecondsToStart; set => GameTime.SecondsToStart = value; }
     public override uint SecondsToFame { get => GameTime.SecondsToFame; set => GameTime.SecondsToFame = value; }
-    public override IReadOnlyList<InventoryPouch> Inventory { get => Items.Inventory; set => Items.Inventory = value; }
 
     // Storage
     public override int GetPartyOffset(int slot) => Party + (SIZE_PARTY * slot);
