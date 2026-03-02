@@ -12,11 +12,7 @@ public partial class EntitySearchSetup : Form
     private SaveFile? CurrentSave;
     public Func<PKM, bool>? SearchFilter { get; private set; }
 
-    public EntitySearchSetup()
-    {
-        InitializeComponent();
-        WinFormsUtil.TranslateInterface(this, Main.CurrentLanguage);
-    }
+    public EntitySearchSetup() => InitializeComponent();
 
     /// <summary>
     /// Occurs when the Search action is requested.
@@ -52,6 +48,7 @@ public partial class EntitySearchSetup : Form
         UC_EntitySearch.InitializeSelections(sav, showContext: false);
         CurrentSave = sav;
         EnsureBuilder(edit);
+        WinFormsUtil.TranslateInterface(this, Main.CurrentLanguage);
     }
 
     protected override void OnShown(EventArgs e)
@@ -114,10 +111,7 @@ public partial class EntitySearchSetup : Form
 
     private void B_Reset_Click(object? sender, EventArgs e)
     {
-        UC_EntitySearch.ResetFilters();
-        RTB_Instructions.Clear();
-        SearchFilter = null;
-        ResetRequested?.Invoke(this, EventArgs.Empty);
+        ForceReset();
         System.Media.SystemSounds.Asterisk.Play();
     }
 

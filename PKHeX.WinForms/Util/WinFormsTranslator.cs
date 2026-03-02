@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -183,7 +184,7 @@ public static class WinFormsTranslator
         }
     }
 
-    private static void ReformatDark(Control z)
+    public static void ReformatDark(Control z)
     {
         if (z is TabControl tc)
         {
@@ -203,6 +204,10 @@ public static class WinFormsTranslator
         {
             lb.BorderStyle = BorderStyle.None;
         }
+        else if (z is RichTextBox rtb)
+        {
+            rtb.BorderStyle = BorderStyle.None;
+        }
         else if (z is TextBoxBase tb)
         {
             tb.BorderStyle = BorderStyle.FixedSingle;
@@ -215,14 +220,10 @@ public static class WinFormsTranslator
         {
             gb.FlatStyle = FlatStyle.Popup;
         }
-        else if (z is RichTextBox rtb)
-        {
-            rtb.BorderStyle = BorderStyle.None;
-        }
         else if (z is ButtonBase b)
         {
             b.FlatStyle = FlatStyle.Popup;
-            if (b.Image is System.Drawing.Bitmap bmp)
+            if (b is Button { Image: Bitmap bmp })
                 b.Image = WinFormsUtil.BlackToWhite(bmp);
         }
     }

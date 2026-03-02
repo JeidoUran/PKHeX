@@ -19,7 +19,7 @@ namespace PKHeX.Core;
 /// <param name="PropertyName">Property to modify.</param>
 /// <param name="PropertyValue">Value to set to the property.</param>
 /// <param name="Comparer">Filter Comparison Type</param>
-public sealed record StringInstruction(string PropertyName, string PropertyValue, InstructionComparer Comparer)
+public sealed record StringInstruction(string PropertyName, string PropertyValue, InstructionComparer Comparer, InstructionOperation Operation = InstructionOperation.Set)
 {
     public string PropertyValue { get; private set; } = PropertyValue;
 
@@ -44,9 +44,35 @@ public sealed record StringInstruction(string PropertyName, string PropertyValue
     [
         Apply,
         FilterEqual, FilterNotEqual, FilterGreaterThan, FilterGreaterThanOrEqual, FilterLessThan, FilterLessThanOrEqual,
+        ApplyAdd, ApplySubtract, ApplyMultiply, ApplyDivide, ApplyModulo,
+        ApplyBitwiseAnd, ApplyBitwiseOr, ApplyBitwiseXor, ApplyBitwiseShiftRight, ApplyBitwiseShiftLeft,
     ];
 
+    public static bool IsFilterInstruction(char c) => c switch
+    {
+        FilterEqual => true,
+        FilterNotEqual => true,
+        FilterGreaterThan => true,
+        FilterLessThan => true,
+        FilterGreaterThanOrEqual => true,
+        FilterLessThanOrEqual => true,
+        _ => false,
+    };
+
+    public static bool IsMutationInstruction(char c) => !IsFilterInstruction(c);
+
     private const char Apply = '.';
+    private const char ApplyAdd = '+';
+    private const char ApplySubtract = '-';
+    private const char ApplyMultiply = '*';
+    private const char ApplyDivide = '/';
+    private const char ApplyModulo = '%';
+    private const char ApplyBitwiseAnd = '&';
+    private const char ApplyBitwiseOr = '|';
+    private const char ApplyBitwiseXor = '^';
+    private const char ApplyBitwiseShiftRight = '»';
+    private const char ApplyBitwiseShiftLeft = '«';
+
     private const char SplitRange = ',';
 
     private const char FilterEqual = '=';
@@ -256,19 +282,19 @@ public sealed record StringInstruction(string PropertyName, string PropertyValue
     public static bool TryParseInstruction(ReadOnlySpan<char> line, [NotNullWhen(true)] out StringInstruction? entry)
     {
         entry = null;
-        if (line.Length is 0 || line[0] is not Apply)
+        if (line.Length is 0 || !TryGetOperation(line[0], out var operation))
             return false;
-        return TryParseSplitTuple(line[1..], ref entry);
+        return TryParseSplitTuple(line[1..], ref entry, default, operation);
     }
 
     /// <summary>
     /// Tries to split a <see cref="StringInstruction"/> tuple from the input <see cref="tuple"/>.
     /// </summary>
-    public static bool TryParseSplitTuple(ReadOnlySpan<char> tuple, [NotNullWhen(true)] ref StringInstruction? entry, InstructionComparer eval = default)
+    public static bool TryParseSplitTuple(ReadOnlySpan<char> tuple, [NotNullWhen(true)] ref StringInstruction? entry, InstructionComparer eval = default, InstructionOperation operation = InstructionOperation.Set)
     {
         if (!TryParseSplitTuple(tuple, out var name, out var value))
             return false;
-        entry = new StringInstruction(name.ToString(), value.ToString(), eval);
+        entry = new StringInstruction(name.ToString(), value.ToString(), eval, operation);
         return true;
     }
 
@@ -305,71 +331,50 @@ public sealed record StringInstruction(string PropertyName, string PropertyValue
         FilterLessThanOrEqual => IsLessThanOrEqual,
         _ => None,
     };
-}
 
-/// <summary>
-/// Value comparison type
-/// </summary>
-public enum InstructionComparer : byte
-{
-    None,
-    IsEqual,
-    IsNotEqual,
-    IsGreaterThan,
-    IsGreaterThanOrEqual,
-    IsLessThan,
-    IsLessThanOrEqual,
-}
-
-/// <summary>
-/// Extension methods for <see cref="InstructionComparer"/>
-/// </summary>
-public static class InstructionComparerExtensions
-{
-    extension(InstructionComparer comparer)
+    /// <summary>
+    /// Gets the <see cref="InstructionOperation"/> from the input <see cref="opCode"/>.
+    /// </summary>
+    public static bool TryGetOperation(char opCode, out InstructionOperation operation)
     {
-        /// <summary>
-        /// Indicates if the <see cref="comparer"/> is supported by the logic.
-        /// </summary>
-        /// <returns>True if supported, false if unsupported.</returns>
-        public bool IsSupported => comparer switch
+        switch (opCode)
         {
-            IsEqual => true,
-            IsNotEqual => true,
-            IsGreaterThan => true,
-            IsGreaterThanOrEqual => true,
-            IsLessThan => true,
-            IsLessThanOrEqual => true,
-            _ => false,
-        };
-
-        /// <summary>
-        /// Checks if the compare operator is satisfied by a boolean comparison result.
-        /// </summary>
-        /// <param name="compareResult">Result from Equals comparison</param>
-        /// <returns>True if satisfied</returns>
-        /// <remarks>Only use this method if the comparison is boolean only. Use the <see cref="IsCompareOperator"/> otherwise.</remarks>
-        public bool IsCompareEquivalence(bool compareResult) => comparer switch
-        {
-            IsEqual => compareResult,
-            IsNotEqual => !compareResult,
-            _ => false,
-        };
-
-        /// <summary>
-        /// Checks if the compare operator is satisfied by the <see cref="IComparable.CompareTo"/> result.
-        /// </summary>
-        /// <param name="compareResult">Result from CompareTo</param>
-        /// <returns>True if satisfied</returns>
-        public bool IsCompareOperator(int compareResult) => comparer switch
-        {
-            IsEqual => compareResult is 0,
-            IsNotEqual => compareResult is not 0,
-            IsGreaterThan => compareResult > 0,
-            IsGreaterThanOrEqual => compareResult >= 0,
-            IsLessThan => compareResult < 0,
-            IsLessThanOrEqual => compareResult <= 0,
-            _ => false,
-        };
+            case Apply:
+                operation = InstructionOperation.Set;
+                return true;
+            case ApplyAdd:
+                operation = InstructionOperation.Add;
+                return true;
+            case ApplySubtract:
+                operation = InstructionOperation.Subtract;
+                return true;
+            case ApplyMultiply:
+                operation = InstructionOperation.Multiply;
+                return true;
+            case ApplyDivide:
+                operation = InstructionOperation.Divide;
+                return true;
+            case ApplyModulo:
+                operation = InstructionOperation.Modulo;
+                return true;
+            case ApplyBitwiseAnd:
+                operation = InstructionOperation.BitwiseAnd;
+                return true;
+            case ApplyBitwiseOr:
+                operation = InstructionOperation.BitwiseOr;
+                return true;
+            case ApplyBitwiseXor:
+                operation = InstructionOperation.BitwiseXor;
+                return true;
+            case ApplyBitwiseShiftRight:
+                operation = InstructionOperation.BitwiseShiftRight;
+                return true;
+            case ApplyBitwiseShiftLeft:
+                operation = InstructionOperation.BitwiseShiftLeft;
+                return true;
+            default:
+                operation = default;
+                return false;
+        }
     }
 }

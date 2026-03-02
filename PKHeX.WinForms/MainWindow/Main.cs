@@ -311,9 +311,14 @@ public partial class Main : Form
 
     private static void ClosePopups()
     {
-        var forms = Application.OpenForms.OfType<Form>().Where(IsPopupFormType).ToArray();
-        foreach (var f in forms)
+        var forms = Application.OpenForms;
+        for (int i = forms.Count - 1; i >= 0; i--)
         {
+            var f = forms[i];
+            if (f is null)
+                continue;
+            if (!IsPopupFormType(f))
+                continue;
             if (f.InvokeRequired)
                 continue; // from another thread, not our scope.
             f.Close();
@@ -387,6 +392,12 @@ public partial class Main : Form
     /// </summary>
     private void MainMenuBoxDump(object sender, EventArgs e)
     {
+        if (Application.OpenForms.OfType<BoxExporter>().FirstOrDefault() is { } open)
+        {
+            open.Focus();
+            return;
+        }
+
         DialogResult ld = WinFormsUtil.Prompt(MessageBoxButtons.YesNo, MsgDatabaseExport);
         if (ld == DialogResult.Yes)
         {
@@ -396,15 +407,21 @@ public partial class Main : Form
         if (ld != DialogResult.No)
             return;
 
-        using var dumper = new BoxExporter(C_SAV.SAV, BoxExporter.ExportOverride.All);
-        dumper.ShowDialog();
+        var dumper = new BoxExporter(C_SAV.SAV, BoxExporter.ExportOverride.All) { Owner = this };
+        dumper.Show();
     }
 
     private void MainMenuBoxDumpSingle(object sender, EventArgs e)
     {
+        if (Application.OpenForms.OfType<BoxExporter>().FirstOrDefault() is { } open)
+        {
+            open.Focus();
+            return;
+        }
+
         C_SAV.SAV.CurrentBox = C_SAV.CurrentBox; // double check
-        using var dumper = new BoxExporter(C_SAV.SAV, BoxExporter.ExportOverride.Current);
-        dumper.ShowDialog();
+        var dumper = new BoxExporter(C_SAV.SAV, BoxExporter.ExportOverride.Current) { Owner = this };
+        dumper.Show();
     }
 
     private void MainMenuBatchEditor(object sender, EventArgs e)
@@ -962,6 +979,7 @@ public partial class Main : Form
 
         SizeCP.ResetSizeLocalizations(lang);
         PKME_Tabs.SizeCP.TryResetStats();
+        C_SAV.SL_Extra.ForceTranslation(lang);
 
         if (sav is not FakeSaveFile)
         {
@@ -1209,6 +1227,7 @@ public partial class Main : Form
 
             // Gather data
             var pk = PreparePKM();
+            var preModify = pk.Clone();
             var encrypt = ModifierKeys == Keys.Control;
             var data = encrypt ? pk.EncryptedPartyData : pk.DecryptedPartyData;
 
@@ -1232,6 +1251,7 @@ public partial class Main : Form
                 C_SAV.M.Drag.ResetCursor(this);
                 await DeleteAsync(newfile, 20_000).ConfigureAwait(false);
             }
+            PKME_Tabs.NotifyWasExported(preModify); // restore pre-modify state, in case the user drags into the same program window
         }
         catch
         {
@@ -1304,6 +1324,13 @@ public partial class Main : Form
     {
         if (!Menu_ExportSAV.Enabled)
             return; // hot-keys can't cheat the system!
+
+        if (Settings.Advanced.SaveExportCheckUnsavedEntity && PKME_Tabs.PKMIsUnsaved)
+        {
+            var prompt = WinFormsUtil.Prompt(MessageBoxButtons.YesNo, MsgProgramSaveUnsaved, MsgContinue);
+            if (prompt != DialogResult.Yes)
+                return;
+        }
 
         C_SAV.ExportSaveFile();
         Text = GetProgramTitle(C_SAV.SAV);

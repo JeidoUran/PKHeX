@@ -30,10 +30,9 @@ public static class SearchUtil
 
     private static bool CanReachContext(PKM pk, EntityContext context)
     {
-        var generation = context.Generation;
-        if (generation <= 2)
+        if (context.IsEraGameBoy)
             return pk.Format <= 2; // 1-2 can reach 1-2
-        if (generation <= 6)
+        if (context.IsEraPre3DS)
             return pk.Format >= 3; // 3-6 can reach 3-6
         return true; // 7+ can reach all contexts
     }
@@ -91,7 +90,7 @@ public static class SearchUtil
 
     public static bool SatisfiesFilterBatchInstruction(PKM pk, IReadOnlyList<StringInstruction> filters)
     {
-        return BatchEditing.IsFilterMatch(filters, pk); // Compare across all filters
+        return EntityBatchEditor.Instance.IsFilterMatch(filters, pk); // Compare across all filters
     }
 
     public static Func<PKM, string> GetCloneDetectMethod(CloneDetectionMethod method) => method switch
