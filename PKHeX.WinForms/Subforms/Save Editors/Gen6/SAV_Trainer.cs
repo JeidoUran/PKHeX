@@ -16,17 +16,13 @@ public partial class SAV_Trainer : Form
         InitializeComponent();
         WinFormsUtil.TranslateInterface(this, Main.CurrentLanguage);
         SAV = (SAV6)(Origin = sav).Clone();
-        if (Main.Unicode)
-        {
-            TB_OTName.Font = FontUtil.GetPKXFont();
-            if (SAV is SAV6XY)
-                TB_TRNick.Font = TB_OTName.Font;
-        }
+        if (!Main.Unicode)
+            TB_OTName.DisableInGameFont = TB_TRNick.DisableInGameFont = TB_OTName.DisableInGameFont = true;
 
         B_MaxCash.Click += (_, _) => MT_Money.Text = "9,999,999";
 
         CB_Gender.Items.Clear();
-        CB_Gender.Items.AddRange(Main.GenderSymbols.Take(2).ToArray()); // m/f depending on unicode selection
+        CB_Gender.Items.AddRange([.. Main.GenderSymbols.Take(2)]); // m/f depending on unicode selection
 
         TrainerStats.LoadRecords(SAV, RecordLists.RecordList_6);
         TrainerStats.GetToolTipText = UpdateTip;
@@ -47,7 +43,10 @@ public partial class SAV_Trainer : Form
 
         L_Style.Visible = TB_Style.Visible = SAV is SAV6XY;
         if (SAV is not SAV6XY)
+        {
             TC_Editor.TabPages.Remove(Tab_Appearance);
+            TC_Editor.TabPages.Remove(Tab_BattleChateau);
+        }
 
         if (SAV is SAV6AODemo)
         {
@@ -164,7 +163,16 @@ public partial class SAV_Trainer : Form
 
         if (SAV is SAV6XY xy)
         {
-            var xystat = (MyStatus6XY)xy.Status;
+            // Battle Chateau
+            var sube = xy.SUBE;
+            CB_BattleChateauRank.Items.AddRange(WinFormsTranslator.GetEnumTranslation<BattleChateauRank6>(Main.CurrentLanguage));
+            CB_BattleChateauRank.SelectedIndex = Math.Clamp(sube.ChateauRank, 0, CB_BattleChateauRank.Items.Count - 1);
+            NUD_BattleChateauPoints.Value = sube.ChateauPoints;
+            CB_BattleChateauRank.SelectedIndexChanged += (_, _)
+                => NUD_BattleChateauPoints.Value = SubEventLog6XY.GetChateauPointsForRank((ushort)CB_BattleChateauRank.SelectedIndex);
+
+            // Appearances and Nickname
+            var xystat = xy.Status;
             PG_CurrentAppearance.SelectedObject = xystat.Fashion;
             TB_TRNick.Text = xystat.Nickname;
         }
@@ -203,7 +211,8 @@ public partial class SAV_Trainer : Form
         SAV.ConsoleRegion = (byte)WinFormsUtil.GetIndex(CB_3DSReg);
         SAV.Language = WinFormsUtil.GetIndex(CB_Language);
 
-        SAV.OT = TB_OTName.Text;
+        if (SAV.OT != TB_OTName.Text) // only modify if changed (preserve trash bytes?)
+            SAV.OT = TB_OTName.Text;
 
         var status = SAV.Status;
         status.Saying1 = TB_Saying1.Text;
@@ -252,10 +261,13 @@ public partial class SAV_Trainer : Form
         if (SAV is IMultiplayerSprite ms)
             ms.MultiplayerSpriteID = (byte)WinFormsUtil.GetIndex(CB_MultiplayerSprite);
 
-        // Appearance
         if (SAV is SAV6XY xy)
         {
-            var xystat = (MyStatus6XY)xy.Status;
+            var sube = xy.SUBE;
+            sube.ChateauRank = (ushort)CB_BattleChateauRank.SelectedIndex;
+            sube.ChateauPoints = (ushort)NUD_BattleChateauPoints.Value;
+
+            var xystat = xy.Status;
             xystat.Fashion = (TrainerFashion6)PG_CurrentAppearance.SelectedObject!;
             xystat.Nickname = TB_TRNick.Text;
         }
@@ -275,14 +287,11 @@ public partial class SAV_Trainer : Form
 
     private void ClickOT(object sender, MouseEventArgs e)
     {
-        TextBox tb = sender as TextBox ?? TB_OTName;
         // Special Character Form
         if (ModifierKeys != Keys.Control)
             return;
 
-        var d = new TrashEditor(tb, SAV, SAV.Generation, SAV.Context);
-        d.ShowDialog();
-        tb.Text = d.FinalString;
+        TrashEditor.Show(TB_OTName, SAV, SAV.Status.OriginalTrainerTrash);
     }
 
     private void ShowTSV(object sender, EventArgs e)
@@ -329,7 +338,7 @@ public partial class SAV_Trainer : Form
         if (SAV is SAV6XY xy)
         {
             xy.Blocks.Fashion.UnlockAllAccessories();
-            System.Media.SystemSounds.Asterisk.Play();
+            WinFormsUtil.Asterisk();
         }
     }
 

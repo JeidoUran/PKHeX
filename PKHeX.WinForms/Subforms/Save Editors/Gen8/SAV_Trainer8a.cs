@@ -15,13 +15,13 @@ public partial class SAV_Trainer8a : Form
         InitializeComponent();
         WinFormsUtil.TranslateInterface(this, Main.CurrentLanguage);
         SAV = (SAV8LA)(Origin = sav).Clone();
-        if (Main.Unicode)
-            TB_OTName.Font = FontUtil.GetPKXFont();
+        if (!Main.Unicode)
+            TB_OTName.DisableInGameFont = true;
 
         B_MaxCash.Click += (_, _) => MT_Money.Text = SAV.MaxMoney.ToString();
 
         CB_Gender.Items.Clear();
-        CB_Gender.Items.AddRange(Main.GenderSymbols.Take(2).ToArray()); // m/f depending on unicode selection
+        CB_Gender.Items.AddRange([.. Main.GenderSymbols.Take(2)]); // m/f depending on unicode selection
 
         GetComboBoxes();
         GetTextBoxes();
@@ -42,7 +42,7 @@ public partial class SAV_Trainer8a : Form
 
         // Display Data
         TB_OTName.Text = SAV.OT;
-        trainerID1.LoadIDValues(SAV, SAV.Generation);
+        trainerID1.LoadTrainer(SAV);
         MT_Money.Text = SAV.Money.ToString();
         CB_Language.SelectedValue = SAV.Language;
 
@@ -88,7 +88,10 @@ public partial class SAV_Trainer8a : Form
 
         SAV.Money = Util.ToUInt32(MT_Money.Text);
         SAV.Language = WinFormsUtil.GetIndex(CB_Language);
-        SAV.OT = TB_OTName.Text;
+
+        // only modify if changed (preserve trash bytes?)
+        if (SAV.OT != TB_OTName.Text)
+            SAV.OT = TB_OTName.Text;
 
         // Copy Position
         if (GB_Map.Enabled && MapUpdated)
@@ -121,20 +124,14 @@ public partial class SAV_Trainer8a : Form
 
     private void ClickOT(object sender, MouseEventArgs e)
     {
-        TextBox tb = sender as TextBox ?? TB_OTName;
+        var tb = TB_OTName;
         // Special Character Form
         if (ModifierKeys != Keys.Control)
             return;
-
-        var d = new TrashEditor(tb, SAV, SAV.Generation, SAV.Context);
-        d.ShowDialog();
-        tb.Text = d.FinalString;
+        TrashEditor.Show(tb, SAV, SAV.MyStatus.OriginalTrainerTrash);
     }
 
-    private void B_Cancel_Click(object sender, EventArgs e)
-    {
-        Close();
-    }
+    private void B_Cancel_Click(object sender, EventArgs e) => Close();
 
     private void B_Save_Click(object sender, EventArgs e)
     {

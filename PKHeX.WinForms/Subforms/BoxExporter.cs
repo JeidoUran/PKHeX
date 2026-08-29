@@ -22,7 +22,7 @@ public partial class BoxExporter : Form
         var settings = obj.BoxExport;
         if (eo != 0)
             settings = settings with { Scope = eo == ExportOverride.All ? BoxExportScope.All : BoxExportScope.Current };
-        PG_Settings.SelectedObject = Settings = settings;
+        PropertyGridLocalization.Apply(PG_Settings, Settings = settings, Main.CurrentLanguage);
 
         int index = 0;
         for (var i = 0; i < Namers.Length; i++)
@@ -46,7 +46,7 @@ public partial class BoxExporter : Form
         int ctr = BoxExport.Export(SAV, folder, namer, settings);
         if (settings.Notify == BoxExportNofify.Silent)
         {
-            System.Media.SystemSounds.Asterisk.Play();
+            WinFormsUtil.Asterisk();
             return;
         }
 

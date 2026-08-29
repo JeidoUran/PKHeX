@@ -10,14 +10,14 @@ public sealed class PK2 : GBPKML, ICaughtData2
 
     public override bool Valid => Species <= Legal.MaxSpeciesID_2;
 
-    public override int SIZE_PARTY => PokeCrypto.SIZE_2PARTY;
-    public override int SIZE_STORED => PokeCrypto.SIZE_2STORED;
-    public override bool Korean => !Japanese && OriginalTrainerTrash[0] <= 0xB;
+    public override int SIZE_STORED => Japanese ? PokeCrypto.SIZE_2JLIST : PokeCrypto.SIZE_2ULIST;
+    public override int SIZE_PARTY => SIZE_STORED;
+    public override bool Korean => !Japanese && StringConverter2KOR.IsHangul(OriginalTrainerTrash);
 
     public override EntityContext Context => EntityContext.Gen2;
 
     public PK2(bool jp = false) : base(PokeCrypto.SIZE_2PARTY, jp) { }
-    public PK2(byte[] decryptedData, bool jp = false) : base(EnsurePartySize(decryptedData), jp) { }
+    public PK2(Memory<byte> decryptedData, bool jp = false) : base(EnsurePartySize(decryptedData), jp) { }
 
     public PK2(ReadOnlySpan<byte> data, ReadOnlySpan<byte> ot, ReadOnlySpan<byte> nick)
         : this(ot.Length == StringLengthJapanese)
@@ -27,11 +27,13 @@ public sealed class PK2 : GBPKML, ICaughtData2
         nick.CopyTo(NicknameTrash);
     }
 
-    private static byte[] EnsurePartySize(byte[] data)
+    private static Memory<byte> EnsurePartySize(Memory<byte> data)
     {
-        if (data.Length != PokeCrypto.SIZE_2PARTY)
-            Array.Resize(ref data, PokeCrypto.SIZE_2PARTY);
-        return data;
+        if (data.Length == PokeCrypto.SIZE_2PARTY)
+            return data;
+        var result = new byte[PokeCrypto.SIZE_2PARTY];
+        data.CopyTo(result);
+        return result;
     }
 
     public override PK2 Clone()
@@ -42,7 +44,14 @@ public sealed class PK2 : GBPKML, ICaughtData2
         return clone;
     }
 
-    protected override byte[] Encrypt() => PokeList2.WrapSingle(this);
+
+    // We (PKHeX) internally manage as single-entry lists in temp buffers.
+    public override int WriteDecryptedDataStored(Span<byte> destination) => PokeList2.WrapSingle(this, destination);
+    public override void WriteEncryptedDataStored(Span<byte> destination) => WriteDecryptedDataStored(destination);
+    public override void WriteDecryptedDataParty(Span<byte> destination) => WriteDecryptedDataStored(destination);
+    public override void WriteEncryptedDataParty(Span<byte> destination) => WriteDecryptedDataStored(destination);
+    public override void WriteDecryptedDataParty(Span<byte> stored, Span<byte> party) => WriteDecryptedDataStored(stored);
+    public override void WriteEncryptedDataParty(Span<byte> stored, Span<byte> party) => WriteDecryptedDataStored(stored);
 
     #region Stored Attributes
     public override ushort Species { get => Data[0]; set => Data[0] = (byte)value; }
@@ -144,16 +153,16 @@ public sealed class PK2 : GBPKML, ICaughtData2
         if ((lang == 1) != Japanese)
             lang = Japanese ? 1 : 2;
         var pi = PersonalTable.SM[Species];
+        var currentLevel = Experience.GetLevel(EXP, pi.EXPGrowth);
         int ability = TransporterLogic.IsHiddenDisallowedVC2(Species) ? 0 : 2; // Hidden
         var pk7 = new PK7
         {
             EncryptionConstant = rnd.Rand32(),
             Species = Species,
             TID16 = TID16,
-            CurrentLevel = CurrentLevel,
-            EXP = EXP,
-            MetLevel = CurrentLevel,
+            MetLevel = currentLevel,
             Nature = Experience.GetNatureVC(EXP),
+            EXP = Experience.GetEXP(currentLevel, pi.EXPGrowth), // EXP is reset to the minimum amount for the transfer level.
             PID = rnd.Rand32(),
             Ball = 4,
             MetDate = EncounterDate.GetDate3DS(),
@@ -199,7 +208,7 @@ public sealed class PK2 : GBPKML, ICaughtData2
         else if (IsNicknamedBank)
         {
             pk7.IsNicknamed = true;
-            pk7.Nickname = Korean ? Nickname : StringConverter12Transporter.GetString(NicknameTrash, Japanese);
+            pk7.Nickname = StringConverter2KOR.IsHangul(NicknameTrash) ? Nickname : StringConverter12Transporter.GetString(NicknameTrash, Japanese);
         }
 
         // Dizzy Punch cannot be transferred
@@ -210,6 +219,7 @@ public sealed class PK2 : GBPKML, ICaughtData2
             pk7.FixMoves();
         }
 
+        // Don't replicate the bugged PP application method; heal the PP to correct values.
         pk7.HealPP();
         pk7.RefreshChecksum();
         return pk7;
@@ -219,7 +229,7 @@ public sealed class PK2 : GBPKML, ICaughtData2
     {
         if (OriginalTrainerTrash[0] == StringConverter1.TradeOTCode) // In-game Trade
             return StringConverter12Transporter.GetTradeNameGen1(lang);
-        if (Korean)
+        if (StringConverter2KOR.IsHangul(OriginalTrainerTrash))
             return OriginalTrainerName;
         return StringConverter12Transporter.GetString(OriginalTrainerTrash, Japanese);
     }
@@ -260,29 +270,15 @@ public sealed class PK2 : GBPKML, ICaughtData2
     };
 
     public override string GetString(ReadOnlySpan<byte> data)
-    {
-        if (Korean)
-            return StringConverter2KOR.GetString(data);
-        return StringConverter2.GetString(data, Language);
-    }
-
+        => StringConverter2.GetString(data, Language);
     public override int LoadString(ReadOnlySpan<byte> data, Span<char> destBuffer)
-    {
-        if (Korean)
-            return StringConverter2KOR.LoadString(data, destBuffer);
-        return StringConverter2.LoadString(data, destBuffer, Language);
-    }
-
+        => StringConverter2.LoadString(data, destBuffer, Language);
     public override int SetString(Span<byte> destBuffer, ReadOnlySpan<char> value, int maxLength, StringConverterOption option)
-    {
-        if (Korean)
-            return StringConverter2KOR.SetString(destBuffer, value, maxLength, option);
-        return StringConverter2.SetString(destBuffer, value, maxLength, Language, option);
-    }
+        => StringConverter2.SetString(destBuffer, value, maxLength, Language, option);
     public override int GetStringTerminatorIndex(ReadOnlySpan<byte> data)
-        => Korean ? StringConverter2KOR.GetTerminatorIndex(data) : TrashBytesGB.GetTerminatorIndex(data);
+        => (!Japanese && StringConverter2KOR.IsHangul(data)) ? StringConverter2KOR.GetTerminatorIndex(data) : TrashBytesGB.GetTerminatorIndex(data);
     public override int GetStringLength(ReadOnlySpan<byte> data)
-        => Korean ? StringConverter2KOR.GetStringLength(data) : TrashBytesGB.GetStringLength(data);
+        => (!Japanese && StringConverter2KOR.IsHangul(data)) ? StringConverter2KOR.GetStringLength(data) : TrashBytesGB.GetStringLength(data);
     public override int GetBytesPerChar() => 1;
 
     /// <summary>

@@ -81,7 +81,7 @@ public enum PIDType : byte
     BACD_R,
     /// <summary> Event Reversed Order PID restricted to 16bit Origin Seed, anti-shiny. </summary>
     BACD_R_A,
-    /// <summary> Event Reversed Order PID restricted to [0,213] Origin Seed, shiny </summary>
+    /// <summary> Event Reversed Order PID restricted to [0,213] Origin Seed, shiny (Binary Coded Decimal hh:mm:ss timestamp digit sum from RTC). </summary>
     BACD_RBCD,
     /// <summary> Event Reversed Order PID restricted to 16bit Origin Seed, consuming 2 calls select the event gift index, anti-shiny. </summary>
     BACD_TA,
@@ -189,6 +189,15 @@ public enum PIDType : byte
     /// </summary>
     /// <remarks>Formulaic based on PID &amp; EC values from a 32bit-seed.</remarks>
     Tera9,
+
+    #endregion
+
+    #region MRNG
+
+    /// <summary>
+    /// Generation 4 Pokémon Ranch gifts generate IVs in a detectable pattern.
+    /// </summary>
+    Ranch,
 
     #endregion
 }

@@ -37,7 +37,6 @@ public partial class SAV_PokedexSM : Form
 
         editing = false;
         LB_Species.SelectedIndex = 0;
-        CB_Species.KeyDown += WinFormsUtil.RemoveDropCB;
     }
 
     private readonly Zukan7 Dex;
@@ -298,7 +297,7 @@ public partial class SAV_PokedexSM : Form
         allModifying = false;
         LB_Forms.Enabled = LB_Forms.Visible = true;
         LB_Species.SelectedIndex = 0;
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private void ClearAll(object sender)

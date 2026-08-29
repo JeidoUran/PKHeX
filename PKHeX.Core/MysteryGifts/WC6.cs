@@ -19,7 +19,7 @@ public sealed class WC6(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
     public override bool FatefulEncounter => !IsLinkGift; // Link gifts do not set fateful encounter
     public bool IsLinkGift => Location == Locations.LinkGift6;
 
-    public int RestrictLanguage { get; set; } // None
+    public byte RestrictLanguage { get; set; } // None
     public byte RestrictVersion { get; set; } // Permit All
 
     public bool CanBeReceivedByVersion(GameVersion version)
@@ -442,7 +442,7 @@ public sealed class WC6(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
         var av = GetAbilityIndex(criteria);
         pk.RefreshAbility(av);
         SetPID(pk);
-        SetIVs(pk);
+        SetIVs(pk, criteria);
     }
 
     private int GetAbilityIndex(in EncounterCriteria criteria) => AbilityType switch
@@ -494,31 +494,12 @@ public sealed class WC6(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
         value[5] = IV_SPD;
     }
 
-    private void SetIVs(PK6 pk)
+    private void SetIVs(PK6 pk, in EncounterCriteria criteria)
     {
         Span<int> finalIVs = stackalloc int[6];
         GetIVs(finalIVs);
-        var ivflag = finalIVs.IndexOfAny(0xFC, 0xFD, 0xFE);
         var rng = Util.Rand;
-        if (ivflag == -1) // Random IVs
-        {
-            for (int i = 0; i < finalIVs.Length; i++)
-            {
-                if (finalIVs[i] > 31)
-                    finalIVs[i] = rng.Next(32);
-            }
-        }
-        else // 1/2/3 perfect IVs
-        {
-            int IVCount = finalIVs[ivflag] - 0xFB;
-            do { finalIVs[rng.Next(6)] = 31; }
-            while (finalIVs.Count(31) < IVCount);
-            for (int i = 0; i < finalIVs.Length; i++)
-            {
-                if (finalIVs[i] != 31)
-                    finalIVs[i] = rng.Next(32);
-            }
-        }
+        ApplyTemplateIVs(finalIVs, criteria, rng, _ => rng.Next(32));
         pk.SetIVs(finalIVs);
     }
 
@@ -565,7 +546,7 @@ public sealed class WC6(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
         }
         else
         {
-            if (!IsMatchEggLocation(pk)) return false;
+            if (!IsMatchEggLocationInternal(pk)) return false;
             if (Location != pk.MetLocation) return false;
         }
 

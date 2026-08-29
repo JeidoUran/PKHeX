@@ -123,6 +123,7 @@ public abstract class BatchEditingBase<TObject, TMeta> : IBatchEditor<TObject> w
     /// <summary>
     /// Checks if the entity is filtered by the provided filters.
     /// </summary>
+    [RequiresUnreferencedCode("Uses reflection-backed property caches to evaluate batch filters.")]
     public bool IsFilterMatch(IEnumerable<StringInstruction> filters, TObject entity)
     {
         var info = CreateMeta(entity);
@@ -138,12 +139,14 @@ public abstract class BatchEditingBase<TObject, TMeta> : IBatchEditor<TObject> w
     /// <summary>
     /// Tries to modify the entity.
     /// </summary>
+    [RequiresUnreferencedCode("Uses reflection-backed property caches to modify entity properties.")]
     public bool TryModifyIsSuccess(TObject entity, IEnumerable<StringInstruction> filters, IEnumerable<StringInstruction> modifications, Func<TObject, bool>? modifier = null)
         => TryModify(entity, filters, modifications, modifier) is ModifyResult.Modified;
 
     /// <summary>
     /// Tries to modify the entity using instructions and a custom modifier delegate.
     /// </summary>
+    [RequiresUnreferencedCode("Uses reflection-backed property caches to modify entity properties.")]
     public ModifyResult TryModify(TObject entity, IEnumerable<StringInstruction> filters, IEnumerable<StringInstruction> modifications, Func<TObject, bool>? modifier = null)
     {
         if (!ShouldModify(entity))
@@ -205,10 +208,10 @@ public abstract class BatchEditingBase<TObject, TMeta> : IBatchEditor<TObject> w
         return result;
     }
 
-    private static Dictionary<string, PropertyInfo>.AlternateLookup<ReadOnlySpan<char>>[] GetPropertyDictionaries(IReadOnlyList<Type> types, int expectedMax)
+    private static Dictionary<string, PropertyInfo>.AlternateLookup<ReadOnlySpan<char>>[] GetPropertyDictionaries(ReadOnlySpan<Type> types, int expectedMax)
     {
-        var result = new Dictionary<string, PropertyInfo>.AlternateLookup<ReadOnlySpan<char>>[types.Count];
-        for (int i = 0; i < types.Count; i++)
+        var result = new Dictionary<string, PropertyInfo>.AlternateLookup<ReadOnlySpan<char>>[types.Length];
+        for (int i = 0; i < types.Length; i++)
             result[i] = GetPropertyDictionary(types[i], ReflectUtil.GetAllPropertyInfoPublic, expectedMax).GetAlternateLookup<ReadOnlySpan<char>>();
         return result;
     }

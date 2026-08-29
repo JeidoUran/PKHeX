@@ -16,16 +16,14 @@ public partial class SAV_Trainer8 : Form
         WinFormsUtil.TranslateInterface(this, Main.CurrentLanguage);
         SAV = (SAV8SWSH)(Origin = sav).Clone();
         //Loading = true;
-        if (Main.Unicode)
-        {
-            TB_OTName.Font = TB_TrainerCardName.Font = FontUtil.GetPKXFont();
-        }
+        if (!Main.Unicode)
+            TB_OTName.DisableInGameFont = TB_TrainerCardName.DisableInGameFont = true;
 
         B_MaxCash.Click += (_, _) => MT_Money.Text = SAV.MaxMoney.ToString();
         B_MaxWatt.Click += (_, _) => MT_Watt.Text = MyStatus8.MaxWatt.ToString();
 
         CB_Gender.Items.Clear();
-        CB_Gender.Items.AddRange(Main.GenderSymbols.Take(2).ToArray()); // m/f depending on unicode selection
+        CB_Gender.Items.AddRange([.. Main.GenderSymbols.Take(2)]); // m/f depending on unicode selection
 
         TrainerStats.LoadRecords(SAV, RecordLists.RecordList_8);
 
@@ -69,7 +67,7 @@ public partial class SAV_Trainer8 : Form
         TB_TrainerCardNumber.Text = SAV.Blocks.TrainerCard.Number;
         MT_TrainerCardID.Text = SAV.Blocks.TrainerCard.TrainerID.ToString("000000");
         MT_RotoRally.Text = SAV.Blocks.TrainerCard.RotoRallyScore.ToString();
-        trainerID1.LoadIDValues(SAV, SAV.Generation);
+        trainerID1.LoadTrainer(SAV);
         MT_Money.Text = SAV.Money.ToString();
         MT_Watt.Text = SAV.MyStatus.Watt.ToString();
         CB_Language.SelectedValue = SAV.Language;
@@ -157,8 +155,13 @@ public partial class SAV_Trainer8 : Form
 
         SAV.Money = Util.ToUInt32(MT_Money.Text);
         SAV.Language = WinFormsUtil.GetIndex(CB_Language);
-        SAV.OT = TB_OTName.Text;
-        SAV.Blocks.TrainerCard.OT = TB_TrainerCardName.Text;
+
+        // only modify if changed (preserve trash bytes?)
+        if (SAV.OT != TB_OTName.Text)
+            SAV.OT = TB_OTName.Text;
+        if (SAV.Blocks.TrainerCard.OT != TB_TrainerCardName.Text)
+            SAV.Blocks.TrainerCard.OT = TB_TrainerCardName.Text;
+
         SAV.Blocks.MyStatus.Number = SAV.Blocks.TrainerCard.Number = TB_TrainerCardNumber.Text;
         SAV.Blocks.TrainerCard.TrainerID = Util.ToInt32(MT_TrainerCardID.Text);
         SAV.Blocks.TrainerCard.RotoRallyScore = Util.ToInt32(MT_RotoRally.Text);
@@ -204,14 +207,13 @@ public partial class SAV_Trainer8 : Form
 
     private void ClickOT(object sender, MouseEventArgs e)
     {
-        TextBox tb = sender as TextBox ?? TB_OTName;
+        if (sender is not TextBox tb)
+            return;
         // Special Character Form
         if (ModifierKeys != Keys.Control)
             return;
-
-        var d = new TrashEditor(tb, SAV, SAV.Generation, SAV.Context);
-        d.ShowDialog();
-        tb.Text = d.FinalString;
+        var trash = tb == TB_OTName ? SAV.MyStatus.OriginalTrainerTrash : SAV.Blocks.TrainerCard.OriginalTrainerTrash;
+        TrashEditor.Show(tb, SAV, trash);
     }
 
     private void B_Cancel_Click(object sender, EventArgs e)
@@ -254,14 +256,14 @@ public partial class SAV_Trainer8 : Form
     private void B_CopyFromPartyToTrainerCard_Click(object sender, EventArgs e)
     {
         SAV.Blocks.TrainerCard.SetPartyData();
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
         ChangeTrainerCardIndex(this, EventArgs.Empty);
     }
 
     private void B_CopyFromPartyToTitleScreen_Click(object sender, EventArgs e)
     {
         SAV.Blocks.TitleScreen.SetPartyData();
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
         ChangeTitleScreenIndex(this, EventArgs.Empty);
     }
 
@@ -303,7 +305,7 @@ public partial class SAV_Trainer8 : Form
             default:
                 return;
         }
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private void ResetAppearance()
@@ -322,6 +324,6 @@ public partial class SAV_Trainer8 : Form
     private void B_GetAllDiglett_Click(object sender, EventArgs e)
     {
         SAV.UnlockAllDiglett();
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 }

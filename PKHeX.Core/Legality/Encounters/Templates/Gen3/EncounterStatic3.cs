@@ -137,7 +137,7 @@ public sealed record EncounterStatic3(ushort Species, byte Level, GameVersion Ve
                     var rand2 = LCRNG.Prev16(ref state);
                     var rand1 = LCRNG.Prev16(ref state);
                     var pid = (rand2 << 16) | rand1;
-                    if (criteria.IsSpecifiedNature() && !criteria.IsSatisfiedNature((Nature)(pid % 25)))
+                    if (criteria.IsSpecifiedNature() && !criteria.IsSatisfiedNature(pid))
                         continue;
                     bool shiny = ShinyUtil.GetIsShiny3(id32, pid);
                     if (criteria.Shiny.IsShiny() != shiny)
@@ -166,11 +166,10 @@ public sealed record EncounterStatic3(ushort Species, byte Level, GameVersion Ve
         {
             var seed = LCRNG.Prev2(s); // Unwind the RNG to get the real origin seed for the PID/IV
             var pid = ClassicEraRNG.GetSequentialPID(seed);
-            if (criteria.IsSpecifiedNature() && !criteria.IsSatisfiedNature((Nature)(pid % 25)))
+            if (criteria.IsSpecifiedNature() && !criteria.IsSatisfiedNature(pid))
                 continue;
 
-            var gender = EntityGender.GetFromPIDAndRatio(pid, gr);
-            if (criteria.IsSpecifiedGender() && !criteria.IsSatisfiedGender(gender))
+            if (criteria.IsSpecifiedGender() && !criteria.IsSatisfiedGender(EntityGender.GetFromPIDAndRatio(pid, gr)))
                 continue;
 
             var abit = (int)(pid & 1);
@@ -179,7 +178,6 @@ public sealed record EncounterStatic3(ushort Species, byte Level, GameVersion Ve
 
             pk.PID = pid;
             pk.IV32 |= iv2 << 15 | iv1;
-            pk.Gender = gender;
             pk.RefreshAbility(abit);
             return true;
         }
@@ -198,7 +196,7 @@ public sealed record EncounterStatic3(ushort Species, byte Level, GameVersion Ve
             if (criteria.Shiny.IsShiny() != shiny)
                 continue;
 
-            if (criteria.IsSpecifiedNature() && !criteria.IsSatisfiedNature((Nature)(pid % 25)))
+            if (criteria.IsSpecifiedNature() && !criteria.IsSatisfiedNature(pid))
                 continue;
 
             var gender = EntityGender.GetFromPIDAndRatio(pid, gr);
@@ -228,7 +226,7 @@ public sealed record EncounterStatic3(ushort Species, byte Level, GameVersion Ve
     #region Matching
     public bool IsMatchExact(PKM pk, EvoCriteria evo)
     {
-        if (!IsMatchEggLocation(pk))
+        if (!this.IsMatchEggLocation(pk))
             return false;
         if (!IsMatchLocation(pk))
             return false;
@@ -248,15 +246,6 @@ public sealed record EncounterStatic3(ushort Species, byte Level, GameVersion Ve
 
     private bool IsDeferredSafari3(bool isSafariBall) => isSafariBall != Locations.IsSafariZoneLocation3(Location);
 
-    private static bool IsMatchEggLocation(PKM pk)
-    {
-        if (pk.Format == 3)
-            return true;
-
-        var expect = pk is PB8 ? Locations.Default8bNone : 0;
-        return pk.EggLocation == expect;
-    }
-
     private bool IsMatchLevel(PKM pk, EvoCriteria evo)
     {
         if (pk.Format != 3) // Met Level lost on PK3=>PK4
@@ -271,10 +260,10 @@ public sealed record EncounterStatic3(ushort Species, byte Level, GameVersion Ve
         if (pk.Format != 3)
             return true; // transfer location verified later
 
-        if (IsEgg)
-            return !pk.IsEgg || pk.MetLocation == Location;
-
         var met = pk.MetLocation;
+        if (IsEgg)
+            return !pk.IsEgg || met == Location;
+
         if (!IsRoaming)
             return Location == met;
 

@@ -70,6 +70,7 @@ public enum LegalityCheckResultCode : ushort
     EggLocationTrade,
     EggLocationTradeFail,
     EggMetLocationFail,
+    EggMoveCombination,
     EggNature,
     EggPP,
     EggPPUp,
@@ -138,16 +139,11 @@ public enum LegalityCheckResultCode : ushort
     FormArgumentValid,
     FormArgumentInvalid,
     FormBattle,
-    FormEternal,
-    FormEternalInvalid,
     FormInvalidGame,
     FormInvalidNature,
     FormItemMatches,
     FormItemInvalid,
     FormParty,
-    FormPikachuCosplay,
-    FormPikachuCosplayInvalid,
-    FormPikachuEventInvalid,
     FormValid,
     FormVivillon,
     FormVivillonEventPre,
@@ -198,13 +194,18 @@ public enum LegalityCheckResultCode : ushort
     GenderInvalidNone,
 
     // Geography
-    GeoBadOrder,
     GeoHardwareInvalid,
     GeoHardwareRange,
     GeoHardwareValid,
     GeoMemoryMissing,
     GeoNoCountryHT,
-    GeoNoRegion,
+
+    // GTS
+    GTSTrainerSanitized, // valid, tag
+    GTSTradedKoreanInternational, // valid
+    GTSTrainerSanitizedExpected,
+    GTSDisallowedClassicRibbon,
+    GTSDisallowedTradedEgg,
 
     // Hints
 
@@ -254,6 +255,7 @@ public enum LegalityCheckResultCode : ushort
     // Moves - General
     MoveKeldeoMismatch,
     MovesShouldMatchRelearnMoves,
+    MovePPMatchesVirtualConsole,
 
     // Moves - Shop & Alpha
     MoveShopAlphaMoveShouldBeOther,
@@ -311,7 +313,7 @@ public enum LegalityCheckResultCode : ushort
     StatInvalidHeightWeight,
     StatGigantamaxInvalid,
     StatGigantamaxValid,
-    StatNatureInvalid,
+    StatAlignmentInvalid,
     StatBattleVersionInvalid,
     StatNobleInvalid,
     StatAlphaInvalid,
@@ -357,16 +359,18 @@ public enum LegalityCheckResultCode : ushort
     TransferMetLocation,
     TransferNature,
     TransferObedienceLevel,
-    TransferKoreanGen4,
     TransferEncryptGen6BitFlip,
     TransferEncryptGen6Equals,
     TransferEncryptGen6Xor,
     TransferTrackerMissing,
     TransferTrackerShouldBeZero,
+
+    // Trash Bytes
     TrashBytesExpected,
     TrashBytesMismatchInitial,
-    TrashBytesMissingTerminator,
+    TrashBytesMissingTerminatorFinal,
     TrashBytesShouldBeEmpty,
+    TrashBytesResetViaTransfer,
 
     // Bulk Cross-Comparison
     BulkCloneDetectedDetails,
@@ -390,7 +394,6 @@ public enum LegalityCheckResultCode : ushort
     ContestSheenLEQ_0,
     EggFMetLevel_0,
     EffortUntrainedCap_0,
-    EvoTradeReqOutsider_0,
     FormArgumentLEQ_0,
     FormArgumentGEQ_0,
     FormInvalidExpect_0,
@@ -408,6 +411,9 @@ public enum LegalityCheckResultCode : ushort
     PokerusStrainUnobtainable_0, // strain
     MemoryHTGender_0, // gender value
     G6SuperTrainBagInvalid_0,
+    GeoBadOrder_0,
+    GeoNoCountry_0,
+    GeoNoRegion_0,
     StatIncorrectHeightValue_0,
     StatIncorrectWeightValue_0,
     StatIncorrectScaleValue_0,
@@ -467,6 +473,7 @@ public enum LegalityCheckResultCode : ushort
     // One/Two Arguments: Special
     FirstComplex,
     RibbonsInvalid_0 = FirstComplex, // generated string
+    EggBreedChain_0, // generated string
     WordFilterFlaggedPattern_01, // filter, pattern
     WordFilterInvalidCharacter_0, // filter, pattern
 
@@ -476,6 +483,7 @@ public enum LegalityCheckResultCode : ushort
     EncTradeShouldHaveEvolvedToSpecies_0, // species
     MoveEvoFCombination_0, // species
     HintEvolvesToSpecies_0, // species
+    EvoTradeReqOutsider_01, // species, species
 
     RibbonMarkingInvalid_0, // ribbon
     RibbonMarkingMissing_0, // ribbon

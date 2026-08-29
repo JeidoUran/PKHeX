@@ -14,13 +14,15 @@ public static class SlotUtil
     /// <summary>
     /// Gets the background image for a slot based on the provided <see cref="type"/>.
     /// </summary>
-    public static Bitmap GetTouchTypeBackground(SlotTouchType type) => type switch
+    public static Bitmap? GetTouchTypeBackground(SlotTouchType type) => type switch
     {
-        SlotTouchType.None => SpriteUtil.Spriter.Transparent,
+        SlotTouchType.None => null,
         SlotTouchType.Get => SpriteUtil.Spriter.View,
         SlotTouchType.Set => SpriteUtil.Spriter.Set,
         SlotTouchType.Delete => SpriteUtil.Spriter.Delete,
         SlotTouchType.Swap => SpriteUtil.Spriter.Set,
+        SlotTouchType.Undo => SpriteUtil.Spriter.Delete,
+        SlotTouchType.Redo => SpriteUtil.Spriter.Set,
         _ => throw new ArgumentOutOfRangeException(nameof(type), type, null),
     };
 

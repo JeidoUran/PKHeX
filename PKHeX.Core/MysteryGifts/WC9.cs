@@ -570,12 +570,12 @@ public sealed class WC9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
     private void SetPINGA(PK9 pk, in EncounterCriteria criteria)
     {
         var pi = pk.PersonalInfo;
-        pk.Nature = pk.StatNature = criteria.GetNature((sbyte)Nature == -1 ? Nature.Random : Nature);
+        pk.Nature = pk.StatAlignment = criteria.GetNature((sbyte)Nature == -1 ? Nature.Random : Nature);
         pk.Gender = criteria.GetGender(Gender, pi);
         var av = GetAbilityIndex(criteria);
         pk.RefreshAbility(av);
         SetPID(pk);
-        SetIVs(pk);
+        SetIVs(pk, criteria);
     }
 
     private int GetAbilityIndex(in EncounterCriteria criteria) => GetAbilityIndex(criteria, AbilityType);
@@ -630,31 +630,12 @@ public sealed class WC9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
         pk.PID = GetPID(pk, PIDType);
     }
 
-    private void SetIVs(PK9 pk)
+    private void SetIVs(PK9 pk, in EncounterCriteria criteria)
     {
         Span<int> finalIVs = stackalloc int[6];
         GetIVs(finalIVs);
-        var ivflag = finalIVs.IndexOfAny(0xFC, 0xFD, 0xFE);
         var rng = Util.Rand;
-        if (ivflag == -1) // Random IVs
-        {
-            for (int i = 0; i < finalIVs.Length; i++)
-            {
-                if (finalIVs[i] > 31)
-                    finalIVs[i] = rng.Next(32);
-            }
-        }
-        else // 1/2/3 perfect IVs
-        {
-            int IVCount = finalIVs[ivflag] - 0xFB;
-            do { finalIVs[rng.Next(6)] = 31; }
-            while (finalIVs.Count(31) < IVCount);
-            for (int i = 0; i < finalIVs.Length; i++)
-            {
-                if (finalIVs[i] != 31)
-                    finalIVs[i] = rng.Next(32);
-            }
-        }
+        ApplyTemplateIVs(finalIVs, criteria, rng, _ => rng.Next(32));
         pk.SetIVs(finalIVs);
     }
 
@@ -713,7 +694,7 @@ public sealed class WC9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
         else
         {
             if (!shinyType.IsValid(pk)) return false;
-            if (!IsMatchEggLocation(pk)) return false;
+            if (!IsMatchEggLocationInternal(pk)) return false;
             if (!IsMatchLocation(pk)) return false;
         }
 
@@ -725,21 +706,8 @@ public sealed class WC9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
 
         if (pk is IScaledSize s)
         {
-            if (!Encounter9RNG.IsHeightMatchSV(pk, (byte)HeightValue))
+            if (!IsMatchSize(pk, s))
                 return false;
-            if (s.WeightScalar != WeightValue)
-                return false;
-
-            if (!IsBeforePatch120(CardID) || (pk.MetDate is { } valid && !IsBeforePatch120(valid)))
-            {
-                // S/V 1.2.0 added scale specification.
-                if (Scale != 256)
-                {
-                    var current = pk is IScaledSize3 s3 ? s3.Scale : s.HeightScalar;
-                    if (Scale != current)
-                        return false;
-                }
-            }
         }
 
         // PID Types 0 and 1 do not use the fixed PID value.
@@ -749,6 +717,34 @@ public sealed class WC9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
         if (type is ShinyType8.Never or ShinyType8.Random)
             return true;
         return pk.PID == GetPID(pk, type);
+    }
+
+    private bool IsMatchSize(PKM pk, IScaledSize s)
+    {
+        var cardID = CardID;
+        if (HomeQuirks.IsGlitchedHisuianZoroarkSV(pk, s, cardID))
+            return true;
+
+        // Check for strict match of Height/Weight.
+        if (!Encounter9RNG.IsHeightMatchSV(pk, (byte)HeightValue))
+            return false;
+        if (s.WeightScalar != WeightValue)
+            return false;
+
+        // S/V 1.2.0 added scale specification to all available (replaced) and future cards.
+        // If it is a pre-patch card, double check that the date was possible to redeem before the patch.
+        if (IsBeforePatch120(cardID) && (pk.MetDate is not { } valid || IsBeforePatch120(valid)))
+            return true; // No scale to check, can be anything random triangular = rand(127) + rand(128);
+
+        if (Scale == 256) // Random
+            return true; // Allowed to be random triangular.
+
+        // Check for strict match.
+        var current = pk is IScaledSize3 s3 ? s3.Scale : s.HeightScalar;
+        if (Scale != current)
+            return false;
+
+        return true; // Everything matches.
     }
 
     private bool IsMatchTrainerName(ReadOnlySpan<byte> trainerTrash, PKM pk)

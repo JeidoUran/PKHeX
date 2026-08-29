@@ -5,7 +5,7 @@ namespace PKHeX.Core;
 /// <summary>
 /// Minimal Trainer Information necessary for generating a <see cref="PKM"/>.
 /// </summary>
-public interface ITrainerInfo : ITrainerID32ReadOnly, IVersion, IGeneration
+public interface ITrainerInfo : ITrainerID32ReadOnly, IVersion, IGeneration, IContext
 {
     string OT { get; }
     byte Gender { get; }
@@ -13,7 +13,6 @@ public interface ITrainerInfo : ITrainerID32ReadOnly, IVersion, IGeneration
     int Language { get; }
 
     new byte Generation { get; }
-    EntityContext Context { get; }
 }
 
 /// <summary>
@@ -137,4 +136,16 @@ public static class TrainerInfoExtensions
             return true; // No version stored.
         return false;
     }
+}
+
+/// <summary>
+/// Save File specific interface for trainer objects to expose information about how many shiny rolls a species may be generated with.
+/// </summary>
+/// <remarks>
+/// Currently only useful for <see cref="GameVersion.PLA"/> which ties Pokédex progress to shiny rolls.
+/// By implementing this interface, a generated Pokémon can be generated more plausibly, and the save file can quickly inform.
+/// </remarks>
+public interface ITrainerInfo8a
+{
+    byte GetShinyRolls(ushort species);
 }

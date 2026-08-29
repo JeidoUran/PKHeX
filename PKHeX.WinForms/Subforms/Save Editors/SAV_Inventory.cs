@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using PKHeX.Core;
+using PKHeX.Drawing.PokeSprite;
 using PKHeX.WinForms.Controls;
 using static PKHeX.Core.MessageStrings;
 
@@ -12,17 +13,18 @@ namespace PKHeX.WinForms;
 public sealed partial class SAV_Inventory : Form
 {
     private readonly SaveFile Origin;
-    private readonly SaveFile SAV;
 
     private static readonly ImageList IL_Pouch = InventoryTypeImageUtil.GetImageList();
+
+    private readonly Bitmap _none = new(1, 1);
 
     public SAV_Inventory(SaveFile sav)
     {
         InitializeComponent();
         tabControl1.ImageList = IL_Pouch;
         WinFormsUtil.TranslateInterface(this, Main.CurrentLanguage);
-        SAV = (Origin = sav).Clone();
-        itemlist = [.. GameInfo.Strings.GetItemStrings(SAV.Context, SAV.Version)]; // copy
+        Origin = sav;
+        itemlist = [.. GameInfo.Strings.GetItemStrings(sav.Context, sav.Version)]; // copy
 
         for (int i = 0; i < itemlist.Length; i++)
         {
@@ -30,8 +32,8 @@ public sealed partial class SAV_Inventory : Form
                 itemlist[i] = $"(Item #{i:000})";
         }
 
-        Bag = SAV.Inventory;
-        ItemColumnReadOnly = SAV is SAV9ZA or SAV9SV;
+        Bag = sav.Inventory;
+        ItemColumnReadOnly = sav is SAV9ZA or SAV9SV;
         var item0 = Bag.Pouches[0].Items[0];
         HasFreeSpace = item0 is IItemFreeSpace;
         HasFreeSpaceIndex = item0 is IItemFreeSpaceIndex;
@@ -70,6 +72,9 @@ public sealed partial class SAV_Inventory : Form
     private readonly bool HasNewShop;
     private readonly bool HasHeld;
     private bool IsCountValidationSuppressed;
+    private bool DropDownNextComboEdit;
+
+    private const int ColumnSprite = 0;
 
     // assume that all pouches have the same amount of columns
     private int ColumnItem;
@@ -90,8 +95,7 @@ public sealed partial class SAV_Inventory : Form
     private void B_Save_Click(object sender, EventArgs e)
     {
         SetBags();
-        Bag.CopyTo(SAV);
-        Origin.CopyChangesFrom(SAV);
+        Bag.CopyTo(Origin);
         Close();
     }
 
@@ -111,13 +115,17 @@ public sealed partial class SAV_Inventory : Form
         }
     }
 
-    private DataGridView GetDGV(InventoryPouch pouch)
+    private DoubleBufferedDataGridView GetDGV(InventoryPouch pouch)
     {
         // Add DataGrid
         var dgv = GetBaseDataGrid(pouch);
+        dgv.CellMouseDown += Dgv_CellMouseDown;
         dgv.CellValueChanged += Dgv_CellValueChanged;
+        dgv.EditingControlShowing += Dgv_EditingControlShowing;
+        dgv.CurrentCellDirtyStateChanged += Dgv_CurrentCellDirtyStateChanged;
 
         // Get Columns
+        dgv.Columns.Add(GetSpriteColumn());
         var item = GetItemColumn(ColumnItem = dgv.Columns.Count);
         dgv.Columns.Add(item);
         dgv.Columns.Add(GetCountColumn(ColumnCount = dgv.Columns.Count));
@@ -164,10 +172,19 @@ public sealed partial class SAV_Inventory : Form
         EditMode = DataGridViewEditMode.EditOnEnter,
         ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single,
         ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize,
-        SelectionMode = DataGridViewSelectionMode.CellSelect,
-        CellBorderStyle = DataGridViewCellBorderStyle.None,
+        SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+        CellBorderStyle = DataGridViewCellBorderStyle.Single,
 
         Tag = pouch,
+    };
+
+    private static DataGridViewImageColumn GetSpriteColumn() => new()
+    {
+        HeaderText = string.Empty,
+        DisplayIndex = ColumnSprite,
+        ReadOnly = true,
+        ImageLayout = DataGridViewImageCellLayout.Zoom,
+        Width = 30,
     };
 
     private DataGridViewComboBoxColumn GetItemColumn(int c, string name = "Item") => new()
@@ -192,10 +209,16 @@ public sealed partial class SAV_Inventory : Form
     {
         HeaderText = name,
         DisplayIndex = c,
-        Width = 45,
+        Width = 48,
         DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter },
         MaxInputLength = 5 // enough to cover ushort.MaxValue (absolute maximum of any quantity ever allowed)
     };
+
+    private static void Dgv_CurrentCellDirtyStateChanged(object? sender, EventArgs e)
+    {
+        if (sender is DataGridView { IsCurrentCellDirty: true } dgv)
+            dgv.CommitEdit(DataGridViewDataErrorContexts.Commit);
+    }
 
     private void LoadAllBags()
     {
@@ -238,6 +261,7 @@ public sealed partial class SAV_Inventory : Form
                 item = pouch.Items[i] = pouch.GetEmpty();
 
             var cells = dgv.Rows[i].Cells;
+            UpdateSprite(cells, item.Index);
             cells[ColumnItem].Value = itemlist[item.Index];
             cells[ColumnCount].Value = item.Count;
 
@@ -272,13 +296,15 @@ public sealed partial class SAV_Inventory : Form
         if (sender is not DataGridView { Tag: InventoryPouch pouch } dgv)
             return;
 
-        // Sanity check the item count against its maximum
         var cells = dgv.Rows[e.RowIndex].Cells;
         var itemName = cells[ColumnItem].Value?.ToString();
         if (string.IsNullOrEmpty(itemName))
             return;
 
         var itemID = itemlist.IndexOf(itemName);
+        UpdateSprite(cells, itemID);
+
+        // Sanity check the item count against its maximum
         var cell = cells[ColumnCount];
         var text = cell.Value?.ToString();
         var count = Util.ToInt32(text);
@@ -289,6 +315,35 @@ public sealed partial class SAV_Inventory : Form
         IsCountValidationSuppressed = true;
         cell.Value = count;
         IsCountValidationSuppressed = false;
+    }
+
+    private void Dgv_CellMouseDown(object? sender, DataGridViewCellMouseEventArgs e)
+    {
+        DropDownNextComboEdit = sender is DataGridView dgv &&
+                                e is { Button: MouseButtons.Left, RowIndex: >= 0, ColumnIndex: >= 0 } &&
+                                dgv.Columns[e.ColumnIndex] is DataGridViewComboBoxColumn;
+    }
+
+    private void UpdateSprite(DataGridViewCellCollection cells, int itemID)
+    {
+        var context = Origin.Context;
+        itemID = ItemConverter.GetItemDisplay(itemID, context);
+        cells[ColumnSprite].Value = itemID == 0 ? _none : SpriteUtil.Spriter.GetItemSprite(itemID, context);
+    }
+
+
+    private void Dgv_EditingControlShowing(object? sender, DataGridViewEditingControlShowingEventArgs e)
+    {
+        if (sender is not DataGridView dgv || e.Control is not ComboBox cb || !DropDownNextComboEdit)
+            return;
+
+        DropDownNextComboEdit = false;
+
+        if (dgv.CurrentCell?.OwningColumn is not DataGridViewComboBoxColumn)
+            return;
+
+        // let the row reference update, invoke via DataGrid rather than directly call
+        dgv.BeginInvoke((MethodInvoker)(() => cb.DroppedDown = true));
     }
 
     private void SetBag(DataGridView dgv, InventoryPouch pouch)
@@ -336,7 +391,7 @@ public sealed partial class SAV_Inventory : Form
         var pouch = Bag.Pouches[index];
         NUD_Count.Maximum = pouch.MaxCount;
 
-        bool disable = pouch.Type is InventoryType.PCItems or InventoryType.FreeSpace && SAV is not SAV8LA;
+        bool disable = pouch.Type is InventoryType.PCItems or InventoryType.FreeSpace && Origin is not SAV8LA;
         NUD_Count.Visible = L_Count.Visible = B_GiveAll.Visible = !disable;
         if (disable && !Main.HaX)
         {
@@ -394,7 +449,7 @@ public sealed partial class SAV_Inventory : Form
         }
 
         ModifyPouch(CurrentPouch, p => p.GiveAllItems(Bag, items, (int)NUD_Count.Value));
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private static bool GetModifySettings(InventoryPouch pouch, out bool truncate, out bool shuffle)

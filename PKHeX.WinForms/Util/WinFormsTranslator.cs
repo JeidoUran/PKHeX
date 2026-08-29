@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.IO;
@@ -34,7 +35,10 @@ public static class WinFormsTranslator
     private static string GetTranslationFileNameInternal(ReadOnlySpan<char> lang) => $"lang_{lang}";
     private static string GetTranslationFileNameExternal(ReadOnlySpan<char> lang) => $"lang_{lang}.txt";
 
+    public static string GetKey(ReadOnlySpan<char> formName, ReadOnlySpan<char> name) => $"{formName}.{name}";
     public static IReadOnlyDictionary<string, string> GetDictionary(string lang) => GetContext(lang).Lookup;
+
+    internal static string TranslateText(string key, string fallback, string lang) => GetContext(lang).GetTranslatedText(key, fallback);
 
     private static TranslationContext GetContext(string lang)
     {
@@ -76,7 +80,7 @@ public static class WinFormsTranslator
         foreach (var c in controls)
         {
             if (c.Name is { } name)
-                context.GetTranslatedText($"{formName}.{name}", c.Text);
+                context.GetTranslatedText(GetKey(formName, name), c.Text);
         }
     }
 
@@ -106,21 +110,21 @@ public static class WinFormsTranslator
         if (c is Control r)
         {
             var current = r.Text;
-            var updated = context.GetTranslatedText($"{formname}.{r.Name}", current);
+            var updated = context.GetTranslatedText(GetKey(formname, r.Name), current);
             if (!ReferenceEquals(current, updated))
                 r.Text = updated;
         }
         else if (c is ToolStripItem t)
         {
             var current = t.Text;
-            var updated = context.GetTranslatedText($"{formname}.{t.Name}", current);
+            var updated = context.GetTranslatedText(GetKey(formname, t.Name), current);
             if (!ReferenceEquals(current, updated))
                 t.Text = updated;
         }
         else if (c is DataGridViewColumn col)
         {
             var current = col.HeaderText;
-            var updated = context.GetTranslatedText($"{formname}.DGV_{col.Name}", current);
+            var updated = context.GetTranslatedText(GetKey(formname, $"DGV_{col.Name}"), current);
             if (!ReferenceEquals(current, updated))
                 col.HeaderText = updated;
         }
@@ -265,6 +269,7 @@ public static class WinFormsTranslator
     }
 
 #if DEBUG
+    [RequiresUnreferencedCode("Debug form loading uses reflection to instantiate forms at runtime.")]
     public static void DumpAll(string baseLang, ReadOnlySpan<string> banlist, string dir)
     {
         var context = Context[baseLang];
@@ -295,6 +300,7 @@ public static class WinFormsTranslator
         return false;
     }
 
+    [RequiresUnreferencedCode("Debug form loading uses reflection to instantiate forms at runtime.")]
     public static void LoadAllForms(IEnumerable<Type> types, ReadOnlySpan<string> banlist)
     {
         foreach (var t in types)
@@ -303,13 +309,21 @@ public static class WinFormsTranslator
                 continue;
 
             var constructors = t.GetConstructors();
-            if (constructors.Length == 0)
-            { System.Diagnostics.Debug.WriteLine($"No constructors: {t.Name}"); continue; }
-            var argCount = constructors[0].GetParameters().Length;
             try
             {
-                var form = (Form?)Activator.CreateInstance(t, new object[argCount]);
-                form?.Dispose();
+                if (constructors.Length == 0)
+                {
+                    Activator.CreateInstance(t, true);
+                }
+                else
+                {
+                    foreach (var ctor in constructors)
+                    {
+                        var parameters = ctor.GetParameters();
+                        var args = new object[parameters.Length];
+                        ctor.Invoke(args);
+                    }
+                }
             }
             // This is a debug utility method, will always be logging. Shouldn't ever fail.
             catch (TargetInvocationException)
@@ -333,54 +347,144 @@ public static class WinFormsTranslator
         }
     }
 
-    public static void LoadSettings<T>(string defaultLanguage, bool add = true)
+    [RequiresUnreferencedCode("Debug settings loading uses reflection to inspect runtime types and attributes.")]
+    public static void LoadProperties<T>(string defaultLanguage, Type parent, bool add = true, bool recurse = false)
     {
         var context = (Dictionary<string, string>)Context[defaultLanguage].Lookup;
         Type t = typeof(T);
-        LoadSettings<T>(add, t, context);
+        LoadAttributes(add, t, context);
+        AddProperties(context, t, parent, add, recurse);
+
     }
 
-    private static void LoadSettings<T>(bool add, Type type, Dictionary<string, string> context)
+    private static void AddProperties(Dictionary<string, string> context, Type t, Type parent, bool add, bool recurse = false)
+    {
+        var props = t.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+        foreach (var prop in props)
+        {
+            var key = GetKey(parent.Name, prop.Name);
+            if (add)
+                context.TryAdd(key, prop.Name);
+            else
+                context.Remove(key);
+
+            if (recurse)
+                AddProperties(context, prop.PropertyType, parent, add, recurse: recurse);
+        }
+    }
+
+    [RequiresUnreferencedCode("Debug settings loading uses reflection to inspect runtime types and attributes.")]
+    public static void LoadPropertyGridFields<T>(string defaultLanguage, bool add = true, bool includeTop = false)
+    {
+        var context = (Dictionary<string, string>)Context[defaultLanguage].Lookup;
+        var t = typeof(T);
+
+        if (includeTop)
+        {
+            LoadPropertyGridFields(add, t, context);
+            return;
+        }
+
+        var props = t.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+        foreach (var prop in props)
+            LoadPropertyGridFields(add, prop.PropertyType, context);
+    }
+
+    [RequiresUnreferencedCode("Debug settings loading uses reflection to inspect runtime types and attributes.")]
+    public static void LoadPropertyGridFields(bool add, Type type, Dictionary<string, string> context)
     {
         var props = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
         foreach (var prop in props)
         {
-            var t = prop.PropertyType;
-            var p = t.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-            foreach (var x in p)
-            {
-                var individual = (LocalizedDescriptionAttribute[])x.GetCustomAttributes(typeof(LocalizedDescriptionAttribute), false);
-                foreach (var v in individual)
-                {
-                    var hasKey = context.ContainsKey(v.Key);
-                    if (add)
-                    {
-                        if (!hasKey)
-                            context.Add(v.Key, v.Fallback);
-                    }
-                    else
-                    {
-                        if (hasKey)
-                            context.Remove(v.Key);
-                    }
-                }
-            }
+            LoadCategory(context, prop, add);
+            LoadProperty(context, prop, add);
+
             // If t is an object type, recurse.
-            if (t.IsClass && t != typeof(string))
-                LoadSettings<T>(add, t, context);
+            var t = prop.PropertyType;
+            if (t.IsArray)
+                LoadPropertyGridFields(add, t.GetElementType()!, context);
+            else if (t.IsClass && t != typeof(string))
+                LoadPropertyGridSubType(add, t, context);
+            else if (t.IsEnum)
+                LoadEnums(context, t);
         }
     }
 
-    public static void LoadEnums(ReadOnlySpan<Type> enumTypesToTranslate, string defaultLanguage)
+    private static void LoadProperty(Dictionary<string, string> context, PropertyInfo prop, bool add)
+    {
+        {
+            var key = GetKey("PropertyGrid", prop.Name);
+            if (add)
+                context.TryAdd(key, prop.Name);
+            else
+                context.Remove(key);
+        }
+    }
+
+    private static void LoadCategory(Dictionary<string, string> context, PropertyInfo prop, bool add)
+    {
+        var category = (CategoryAttribute[])prop.GetCustomAttributes(typeof(CategoryAttribute), false);
+        foreach (var v in category)
+        {
+            var key = GetKey("PropertyGrid.Category", v.Category);
+            if (add)
+                context.TryAdd(key, v.Category);
+            else
+                context.Remove(key);
+        }
+    }
+
+    private static void LoadPropertyGridSubType(bool add, Type type, Dictionary<string, string> context)
+    {
+        // var name = type.Name;
+        // if (name.Contains('`'))
+        //     return;
+        // var key = GetKey("PropertyGrid.Type", name);
+        // 
+        // if (add)
+        //     context.TryAdd(key, name);
+        // else
+        //     context.Remove(key);
+        // 
+        // LoadPropertyGridFields(add, type, context);
+    }
+
+    private static void LoadAttributes(bool add, Type type, Dictionary<string, string> context)
+    {
+        var props = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+        foreach (var prop in props)
+        {
+            var individual = (LocalizedDescriptionAttribute[])prop.GetCustomAttributes(typeof(LocalizedDescriptionAttribute), false);
+            foreach (var v in individual)
+            {
+                if (add)
+                    context.TryAdd(v.Key, v.Fallback);
+                else
+                    context.Remove(v.Key);
+            }
+
+            // If t is an object type, recurse.
+            var t = prop.PropertyType;
+            if (t.IsClass && t != typeof(string))
+                LoadAttributes(add, t, context);
+        }
+    }
+
+    public static void LoadEnums(string defaultLanguage, params ReadOnlySpan<Type> enumTypesToTranslate)
     {
         var context = (Dictionary<string, string>)Context[defaultLanguage].Lookup;
+        LoadEnums(context, enumTypesToTranslate);
+    }
+
+    private static void LoadEnums(Dictionary<string, string> context, params ReadOnlySpan<Type> enumTypesToTranslate)
+    {
         foreach (var t in enumTypesToTranslate)
         {
             var names = Enum.GetNames(t);
             foreach (var name in names)
             {
-                var key = $"{t.Name}.{name}";
-                context.Add(key, name);
+                var key = GetKey(t.Name, name);
+                context.TryAdd(key, name);
             }
         }
     }

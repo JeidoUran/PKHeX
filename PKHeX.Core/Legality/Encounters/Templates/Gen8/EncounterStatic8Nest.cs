@@ -122,8 +122,6 @@ public abstract record EncounterStatic8Nest<T>(GameVersion Version)
         }
 
         FinishCorrelation(pk, seed);
-        if (criteria.IsSpecifiedNature() && criteria.Nature != pk.Nature && criteria.Nature.IsMint())
-            pk.StatNature = criteria.Nature;
     }
 
     protected GenerateParam8 GetParam() => GetParam(Info);
@@ -152,7 +150,7 @@ public abstract record EncounterStatic8Nest<T>(GameVersion Version)
         if (pk.Species == (int)Core.Species.Shedinja && pk is IRibbonSetAffixed x && ((RibbonIndex)x.AffixedRibbon).IsEncounterMark8)
             return false;
 
-        if (!IsMatchEggLocation(pk))
+        if (!this.IsMatchEggLocation(pk))
             return false;
         if (!IsMatchLocation(pk))
             return false;
@@ -172,11 +170,6 @@ public abstract record EncounterStatic8Nest<T>(GameVersion Version)
     }
 
     protected virtual bool IsMatchLocation(PKM pk) => Location == pk.MetLocation;
-    private static bool IsMatchEggLocation(PKM pk)
-    {
-        var expect = pk is PB8 ? Locations.Default8bNone : 0;
-        return pk.EggLocation == expect;
-    }
 
     protected virtual bool IsMatchLevel(PKM pk) => pk.MetLevel == Level;
     private bool IsMatchGender(PKM pk) => Gender == FixedGenderUtil.GenderRandom || Gender == pk.Gender;
@@ -260,7 +253,7 @@ public abstract record EncounterStatic8Nest<T>(GameVersion Version)
         return RaidRNG.Verify(pk, seed, iv, param, forceNoShiny: forceNoShiny);
     }
 
-    public virtual void GenerateSeed64(PKM pk, ulong seed)
+    public virtual void GenerateSeed64(PKM pk, ITrainerInfo tr, ulong seed)
     {
         var criteria = EncounterCriteria.Unrestricted;
         var pk8 = (PK8)pk;

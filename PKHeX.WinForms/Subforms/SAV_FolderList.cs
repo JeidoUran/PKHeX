@@ -29,8 +29,9 @@ public partial class SAV_FolderList : Form
 
         var backups = Main.BackupPath;
         var drives = Environment.GetLogicalDrives();
-        Paths = GetPathList(drives, backups);
+        Paths = GetPathList(drives, backups, cts.Token);
 
+        components ??= new System.ComponentModel.Container();
         dgDataRecent.ContextMenuStrip = GetContextMenu(dgDataRecent);
         dgDataBackup.ContextMenuStrip = GetContextMenu(dgDataBackup);
         dgDataRecent.Sorted += (_, _) => GetFilterText(dgDataRecent);
@@ -79,12 +80,13 @@ public partial class SAV_FolderList : Form
             Close();
     }
 
-    private static List<INamedFolderPath> GetPathList(IReadOnlyList<string> drives, string backupPath)
+    private static List<INamedFolderPath> GetPathList(IReadOnlyList<string> drives, string backupPath,
+        CancellationToken token)
     {
         List<INamedFolderPath> locs =
         [
             new CustomFolderPath(backupPath, DisplayText: "PKHeX Backups"),
-            ..GetUserPaths(), ..GetPaths3DS(drives), ..GetPathsSwitch(drives),
+            ..GetUserPaths(), ..GetPaths3DS(drives, token), ..GetPathsSwitch(drives, token),
         ];
         var filtered = locs
             .DistinctBy(z => z.Path)
@@ -111,7 +113,7 @@ public partial class SAV_FolderList : Form
         };
         FLP_Buttons.Controls.Add(button);
 
-        var hover = new ToolTip {AutoPopDelay = 30_000};
+        var hover = new ToolTip(components) {AutoPopDelay = 30_000};
         button.MouseHover += (_, _) => hover.Show(path, button);
     }
 
@@ -128,9 +130,9 @@ public partial class SAV_FolderList : Form
         return paths.Select(x => new CustomFolderPath(x, FolderPathGroup.Custom));
     }
 
-    private static IEnumerable<CustomFolderPath> GetPaths3DS(IEnumerable<string> drives)
+    private static IEnumerable<CustomFolderPath> GetPaths3DS(IEnumerable<string> drives, CancellationToken token)
     {
-        var path3DS = SaveFinder.Get3DSLocation(drives);
+        var path3DS = SaveFinder.Get3DSLocation(drives, true, token);
         if (path3DS is null)
             return [];
 
@@ -142,9 +144,9 @@ public partial class SAV_FolderList : Form
         return paths.Select(z => new CustomFolderPath(z, FolderPathGroup.Nintendo3DS));
     }
 
-    private static IEnumerable<CustomFolderPath> GetPathsSwitch(IEnumerable<string> drives)
+    private static IEnumerable<CustomFolderPath> GetPathsSwitch(IEnumerable<string> drives, CancellationToken token)
     {
-        var pathNX = SaveFinder.GetSwitchLocation(drives);
+        var pathNX = SaveFinder.GetSwitchLocation(drives, true, token);
         if (pathNX is null)
             return [];
 
@@ -177,7 +179,7 @@ public partial class SAV_FolderList : Form
         var mnuOpen = new ToolStripMenuItem
         {
             Name = "mnuOpen",
-            Text = "Open",
+            Text = "&Open",
             Image = Resources.open,
         };
         mnuOpen.Click += (_, _) => ClickOpenFile(dgv);
@@ -185,14 +187,24 @@ public partial class SAV_FolderList : Form
         var mnuBrowseAt = new ToolStripMenuItem
         {
             Name = "mnuBrowseAt",
-            Text = "Browse...",
+            Text = "&Browse...",
             Image = Resources.folder,
         };
         mnuBrowseAt.Click += (_, _) => ClickOpenFolder(dgv);
 
+        var mnuDelete = new ToolStripMenuItem
+        {
+            Name = "mnuDelete",
+            Text = "&Delete",
+            Image = Resources.nocheck,
+        };
+        mnuDelete.Click += (_, _) => ClickDeleteFile(dgv);
+
         ContextMenuStrip mnu = new();
         mnu.Items.Add(mnuOpen);
         mnu.Items.Add(mnuBrowseAt);
+        mnu.Items.Add(mnuDelete);
+        components.Add(mnu);
         return mnu;
     }
 
@@ -206,6 +218,32 @@ public partial class SAV_FolderList : Form
         }
 
         OpenSaveFile(sav.Save);
+    }
+
+    private void ClickDeleteFile(DataGridView dgv)
+    {
+        var preview = GetSaveFile(dgv);
+        if (preview is null || !File.Exists(preview.FilePath))
+        {
+            WinFormsUtil.Alert(MsgFileLoadFail);
+            return;
+        }
+
+        var path = preview.FilePath;
+        var result = WinFormsUtil.Prompt(MessageBoxButtons.YesNo, MsgFileDelete, preview.FilePath);
+        if (result != DialogResult.Yes)
+            return;
+
+        try
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+            DeleteSaveFile(dgv);
+        }
+        catch (Exception ex)
+        {
+            WinFormsUtil.Alert(MsgFileDeleteFail, path, ex.Message);
+        }
     }
 
     private void ClickOpenFolder(DataGridView dgv)
@@ -230,6 +268,24 @@ public partial class SAV_FolderList : Form
         var item = c[0].Index;
         var parent = dgData == dgDataRecent ? Recent : Backup;
         return parent[item];
+    }
+
+    private void DeleteSaveFile(DataGridView dgData)
+    {
+
+        var c = dgData.SelectedRows;
+        if (c.Count != 1)
+            return;
+
+        var item = c[0].Index;
+        var parent = dgData == dgDataRecent ? Recent : Backup;
+        parent.RemoveAt(item);
+
+        // Scan other list to remove if it exists there too (e.g. backup and recent)
+        var other = dgData == dgDataRecent ? Backup : Recent;
+        var preview = other.FirstOrDefault(z => z.FilePath == parent[item].FilePath);
+        if (preview is not null)
+            other.Remove(preview);
     }
 
     private void DataGridCellMouseDown(object sender, DataGridViewCellMouseEventArgs e)

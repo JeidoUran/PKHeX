@@ -147,21 +147,9 @@ public static class MarkRules
             return true;
         if (!wasAlpha)
             return !m.RibbonMarkAlpha; // Shouldn't have the flag.
-        if (!HasEnteredHOME300(pk))
+        if (!HomeQuirks.HasEnteredSetAlphaMark(pk))
             return true; // Can be either state -- only HOME sets the flag.
         return m.RibbonMarkAlpha; // Should have the flag.
-    }
-
-    private static bool HasEnteredHOME300(PKM pk)
-    {
-        // Mark is only set by HOME ingesting the data for the first time.
-        // Before HOME 3.0.0, this mark was never set.
-        // Could be okay as Gen8 format -- don't bother checking for "must have visited HOME 3.0.0+".
-        if (pk is IHomeTrack { HasTracker: false })
-            return false; // Hasn't been transferred to HOME yet.
-        if (pk.LA && pk is PK8 or PB8 or PA8)
-            return false; // Could have been moved prior to the HOME 3.0.0 update.
-        return true;
     }
 
     /// <summary>
@@ -169,7 +157,7 @@ public static class MarkRules
     /// </summary>
     public static bool IsMarkValidAlpha(IEncounterTemplate enc, PKM pk)
     {
-        var expect = enc is IAlphaReadOnly { IsAlpha: true } && enc.Context != EntityContext.Gen9a; // TODO ZA HOME
+        var expect = enc is IAlphaReadOnly { IsAlpha: true };
         return IsMarkValidAlpha(pk, expect);
     }
 

@@ -13,7 +13,7 @@ public static class CommonEdits
     public static bool ShowdownSetIVMarkings { get; set; } = true;
 
     /// <summary>
-    /// Setting which causes the <see cref="PKM.StatNature"/> to the <see cref="PKM.Nature"/> in Gen8+ formats.
+    /// Setting which causes the <see cref="PKM.StatAlignment"/> to the <see cref="PKM.Nature"/> in Gen8+ formats.
     /// </summary>
     public static bool ShowdownSetBehaviorNature { get; set; }
 
@@ -30,8 +30,10 @@ public static class CommonEdits
                 pk.ClearNickname();
                 return;
             }
-            pk.IsNicknamed = true;
+
+            pk.PrepareNickname();
             pk.Nickname = nick;
+            pk.IsNicknamed = true;
         }
 
         /// <summary>
@@ -112,7 +114,7 @@ public static class CommonEdits
                 return true;
             }
 
-            do { pk.SetShiny(); }
+            do pk.SetShiny();
             while (!type.IsValid(pk));
 
             return true;
@@ -137,12 +139,12 @@ public static class CommonEdits
         /// <param name="nature">Desired <see cref="PKM.Nature"/> value to set.</param>
         public void SetNature(Nature nature)
         {
-            if (!nature.IsFixed())
+            if (!nature.IsFixed)
                 nature = 0; // default valid
 
             var format = pk.Format;
             if (format >= 8)
-                pk.StatNature = nature;
+                pk.StatAlignment = nature;
             else if (format is 3 or 4)
                 pk.SetPIDNature(nature);
             else
@@ -193,7 +195,12 @@ public static class CommonEdits
             }
             else
             {
-                pk.SetEVs(evs);
+                // Champions revises EV behavior to be /8.
+                // If the user is requesting a Champions-like set import, apply EVs that way.
+                if (set.IsChampions)
+                    pk.SetEVsChampions(evs);
+                else
+                    pk.SetEVs(evs);
             }
 
             // IVs have no side effects such as hidden power type in gen 8
@@ -243,7 +250,7 @@ public static class CommonEdits
                 s.SetMoveShopFlags(set.Moves, pk);
 
             if (ShowdownSetBehaviorNature && pk.Format >= 8)
-                pk.Nature = pk.StatNature;
+                pk.Nature = pk.StatAlignment;
 
             var legal = new LegalityAnalysis(pk);
             if (pk is ITechRecord t)
@@ -262,6 +269,13 @@ public static class CommonEdits
                 pk.SetRelearnMoves(legal);
             pk.ResetPartyStats();
             pk.RefreshChecksum();
+        }
+
+        private void SetEVsChampions(ReadOnlySpan<int> evs)
+        {
+            Span<int> final = stackalloc int[6];
+            EffortValues.ConvertFromChampions(evs, final);
+            pk.SetEVs(final);
         }
 
         /// <summary>

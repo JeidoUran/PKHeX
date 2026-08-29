@@ -48,21 +48,25 @@ public sealed class TrainerNameVerifier : Verifier
         }
         else if (trainer.Length > Legal.GetMaxLengthOT(enc.Generation, (LanguageID)pk.Language))
         {
-            if (!IsEdgeCaseLength(pk, enc, trainer))
+            if (!IsEdgeCaseLength(pk, enc, trainer) && !data.HasResult(GTSTrainerSanitized))
                 data.AddLine(Get(Severity.Invalid, OTLong));
         }
 
         if (ParseSettings.Settings.WordFilter.IsEnabled(pk.Format))
         {
+            // Check original trainer
             if (WordFilter.IsFiltered(trainer, pk.Context, enc.Context, out var type, out var badPattern))
                 data.AddLine(GetInvalid(CheckIdentifier.Trainer, WordFilterFlaggedPattern_01, (ushort)type, (ushort)badPattern));
             if (ContainsTooManyNumbers(trainer, enc.Generation))
                 data.AddLine(GetInvalid(CheckIdentifier.Trainer, WordFilterTooManyNumbers_0, (ushort)GetMaxNumberCount(enc.Generation)));
 
-            Span<char> ht = stackalloc char[pk.TrashCharCountTrainer];
+            // Check handling trainer
+            Span<char> ht = stackalloc char[pk.TrashCharCountHandler];
             int nameLen = pk.LoadString(pk.HandlingTrainerTrash, ht);
             if (WordFilter.IsFiltered(ht[..nameLen], pk.Context, out type, out badPattern)) // HT context is always the current context
                 data.AddLine(GetInvalid(CheckIdentifier.Handler, WordFilterFlaggedPattern_01, (ushort)type, (ushort)badPattern));
+            if (ContainsTooManyNumbers(ht, pk.Format))
+                data.AddLine(GetInvalid(CheckIdentifier.Handler, WordFilterTooManyNumbers_0, (ushort)GetMaxNumberCount(pk.Format)));
         }
     }
 
@@ -146,7 +150,7 @@ public sealed class TrainerNameVerifier : Verifier
         {
             if (str.Length > 5)
                 data.AddLine(GetInvalid(OTLong, 5));
-            if (!StringConverter1.GetIsJapanese(str))
+            if (data.EncounterOriginal.Generation == 1 ? !StringConverter1.GetIsJapanese(str) : !StringConverter2.GetIsJapanese(str))
                 data.AddLine(GetInvalid(G1CharOT));
         }
         else if (pk.Korean)

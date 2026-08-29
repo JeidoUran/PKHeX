@@ -13,7 +13,7 @@ public sealed class ItemStorage3FRLG : IItemStorage
     public static ReadOnlySpan<ushort> Key =>
     [
         // R/S
-        259, 260, 261, 262, 263, 264, 265, 266, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288,
+        260, 261, 262, 263, 264, 265,
         // FR/LG
         349, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 360, 361, 362, 363, 364, 365, 366, 367, 368, 369, 370, 371, 372, 373, 374,
     ];
@@ -46,16 +46,24 @@ public sealed class ItemStorage3FRLG_VC : IItemStorage // TODO VC RSE: delete me
 
     private static ReadOnlySpan<ushort> Unreleased =>
     [
+        // Unobtainable
         005, // Safari
+
+        // TODO RSE VC: Remove these
+        007, 012, // Dive Ball, Premier Ball (Unobtainable without trading from R/S/E)
         039,      041, 042, 043, // Flutes (Yellow is obtainable via Coins)
+
+        // Unobtainable
         044, // Berry Juice
+
+        // TODO RSE VC: Remove these
         046, 047, // Shoal Salt, Shoal Shell
         048, 049, 050, 051, // Shards
         081, // Fluffy Tail
-
         121, 122, 123, 124, 125, 126, 127, 128, 129, // Mail
-
         168, // Liechi Berry (Mirage Island)
+
+        // Event Berries (Unobtainable)
         169, // Ganlon Berry (Event)
         170, // Salac Berry (Event)
         171, // Petaya Berry (Event)
@@ -64,6 +72,7 @@ public sealed class ItemStorage3FRLG_VC : IItemStorage // TODO VC RSE: delete me
         174, // Starf Berry (Event)
         175, // Enigma Berry (Event)
 
+        // TODO RSE VC: Remove these
         179, // BrightPowder
         180, // White Herb
         185, // Mental Herb
@@ -71,13 +80,9 @@ public sealed class ItemStorage3FRLG_VC : IItemStorage // TODO VC RSE: delete me
         191, // Soul Dew
         192, // DeepSeaTooth
         193, // DeepSeaScale
-
         198, // Scope Lens
-
         202, // Light Ball
-
         219, // Shell Bell
-
         254, 255, 256, 257, 258, 259, // Scarves
     ];
 }

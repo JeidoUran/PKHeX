@@ -1,3 +1,4 @@
+using PKHeX.Core;
 using PKHeX.WinForms.Controls;
 
 namespace PKHeX.WinForms
@@ -45,7 +46,7 @@ namespace PKHeX.WinForms
             CB_TCM1 = new System.Windows.Forms.ComboBox();
             NUD_Coins = new System.Windows.Forms.NumericUpDown();
             L_Coins = new System.Windows.Forms.Label();
-            TB_RivalName = new System.Windows.Forms.TextBox();
+            TB_RivalName = new PKHeX.WinForms.Controls.RenderedString();
             L_TrainerName = new System.Windows.Forms.Label();
             NUD_BP = new System.Windows.Forms.NumericUpDown();
             L_BP = new System.Windows.Forms.Label();
@@ -157,12 +158,15 @@ namespace PKHeX.WinForms
             CB_Species = new System.Windows.Forms.ComboBox();
             L_OT = new System.Windows.Forms.Label();
             TB_PID = new System.Windows.Forms.TextBox();
-            TB_Nickname = new System.Windows.Forms.TextBox();
+            TB_Nickname = new PKHeX.WinForms.Controls.RenderedString();
             TB_TID = new System.Windows.Forms.MaskedTextBox();
-            TB_OT = new System.Windows.Forms.TextBox();
+            TB_OT = new PKHeX.WinForms.Controls.RenderedString();
             TB_SID = new System.Windows.Forms.MaskedTextBox();
             NUD_Painting = new System.Windows.Forms.NumericUpDown();
             CHK_EnablePaint = new System.Windows.Forms.CheckBox();
+            Tab_Other = new System.Windows.Forms.TabPage();
+            FLP_Other = new System.Windows.Forms.FlowLayoutPanel();
+            B_ForceMirageIsland = new System.Windows.Forms.Button();
             TC_Misc.SuspendLayout();
             TAB_Main.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)NUD_BPEarned).BeginInit();
@@ -209,6 +213,8 @@ namespace PKHeX.WinForms
             GB_Painting.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)NUD_Caption).BeginInit();
             ((System.ComponentModel.ISupportInitialize)NUD_Painting).BeginInit();
+            Tab_Other.SuspendLayout();
+            FLP_Other.SuspendLayout();
             SuspendLayout();
             // 
             // B_Save
@@ -246,6 +252,7 @@ namespace PKHeX.WinForms
             TC_Misc.Controls.Add(Tab_Pokeblocks);
             TC_Misc.Controls.Add(Tab_Decorations);
             TC_Misc.Controls.Add(Tab_Paintings);
+            TC_Misc.Controls.Add(Tab_Other);
             TC_Misc.Location = new System.Drawing.Point(14, 14);
             TC_Misc.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             TC_Misc.Multiline = true;
@@ -393,7 +400,7 @@ namespace PKHeX.WinForms
             // 
             // TB_RivalName
             // 
-            TB_RivalName.Font = new System.Drawing.Font("Courier New", 8.25F);
+            TB_RivalName.DisplayContext = EntityContext.Gen3;
             TB_RivalName.Location = new System.Drawing.Point(140, 107);
             TB_RivalName.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             TB_RivalName.MaxLength = 7;
@@ -1721,6 +1728,7 @@ namespace PKHeX.WinForms
             // 
             // TB_PID
             // 
+            TB_PID.CharacterCasing = System.Windows.Forms.CharacterCasing.Upper;
             TB_PID.Font = new System.Drawing.Font("Courier New", 8F);
             TB_PID.Location = new System.Drawing.Point(90, 53);
             TB_PID.Name = "TB_PID";
@@ -1731,6 +1739,7 @@ namespace PKHeX.WinForms
             // 
             // TB_Nickname
             // 
+            TB_Nickname.DisplayContext = EntityContext.Gen3;
             TB_Nickname.Location = new System.Drawing.Point(90, 149);
             TB_Nickname.Name = "TB_Nickname";
             TB_Nickname.Size = new System.Drawing.Size(125, 23);
@@ -1748,6 +1757,7 @@ namespace PKHeX.WinForms
             // 
             // TB_OT
             // 
+            TB_OT.DisplayContext = EntityContext.Gen3;
             TB_OT.Location = new System.Drawing.Point(90, 125);
             TB_OT.Name = "TB_OT";
             TB_OT.Size = new System.Drawing.Size(85, 23);
@@ -1782,6 +1792,37 @@ namespace PKHeX.WinForms
             CHK_EnablePaint.Text = "Enabled";
             CHK_EnablePaint.UseVisualStyleBackColor = true;
             CHK_EnablePaint.CheckedChanged += CHK_EnablePaint_CheckedChanged;
+            // 
+            // Tab_Other
+            // 
+            Tab_Other.Controls.Add(FLP_Other);
+            Tab_Other.Location = new System.Drawing.Point(4, 48);
+            Tab_Other.Name = "Tab_Other";
+            Tab_Other.Padding = new System.Windows.Forms.Padding(3);
+            Tab_Other.Size = new System.Drawing.Size(357, 230);
+            Tab_Other.TabIndex = 8;
+            Tab_Other.Text = "Other";
+            Tab_Other.UseVisualStyleBackColor = true;
+            // 
+            // FLP_Other
+            // 
+            FLP_Other.Controls.Add(B_ForceMirageIsland);
+            FLP_Other.Dock = System.Windows.Forms.DockStyle.Fill;
+            FLP_Other.Location = new System.Drawing.Point(3, 3);
+            FLP_Other.Name = "FLP_Other";
+            FLP_Other.Size = new System.Drawing.Size(351, 224);
+            FLP_Other.TabIndex = 0;
+            // 
+            // B_ForceMirageIsland
+            // 
+            B_ForceMirageIsland.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            B_ForceMirageIsland.Location = new System.Drawing.Point(3, 3);
+            B_ForceMirageIsland.Name = "B_ForceMirageIsland";
+            B_ForceMirageIsland.Size = new System.Drawing.Size(240, 48);
+            B_ForceMirageIsland.TabIndex = 0;
+            B_ForceMirageIsland.Text = "Mirage Island Appear: Match First Party Member";
+            B_ForceMirageIsland.UseVisualStyleBackColor = true;
+            B_ForceMirageIsland.Click += B_ForceMirageIsland_Click;
             // 
             // SAV_Misc3
             // 
@@ -1852,6 +1893,8 @@ namespace PKHeX.WinForms
             GB_Painting.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)NUD_Caption).EndInit();
             ((System.ComponentModel.ISupportInitialize)NUD_Painting).EndInit();
+            Tab_Other.ResumeLayout(false);
+            FLP_Other.ResumeLayout(false);
             ResumeLayout(false);
         }
 
@@ -1875,7 +1918,7 @@ namespace PKHeX.WinForms
         private System.Windows.Forms.Label L_B5Score;
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.Label label4;
-        private System.Windows.Forms.TextBox TB_RivalName;
+        private PKHeX.WinForms.Controls.RenderedString TB_RivalName;
         private System.Windows.Forms.Label L_TrainerName;
         private System.Windows.Forms.NumericUpDown NUD_BP;
         private System.Windows.Forms.Label L_BP;
@@ -1974,8 +2017,8 @@ namespace PKHeX.WinForms
         private System.Windows.Forms.Label L_SID;
         private System.Windows.Forms.Label L_TID;
         private System.Windows.Forms.TextBox TB_PID;
-        private System.Windows.Forms.TextBox TB_Nickname;
-        private System.Windows.Forms.TextBox TB_OT;
+        private PKHeX.WinForms.Controls.RenderedString TB_Nickname;
+        private PKHeX.WinForms.Controls.RenderedString TB_OT;
         private System.Windows.Forms.MaskedTextBox TB_SID;
         private System.Windows.Forms.MaskedTextBox TB_TID;
         private System.Windows.Forms.CheckBox CHK_EnablePaint;
@@ -1989,5 +2032,8 @@ namespace PKHeX.WinForms
         private System.Windows.Forms.Label L_Mode;
         private System.Windows.Forms.Label L_Facility;
         private System.Windows.Forms.Label L_Continue;
+        private System.Windows.Forms.TabPage Tab_Other;
+        private System.Windows.Forms.FlowLayoutPanel FLP_Other;
+        private System.Windows.Forms.Button B_ForceMirageIsland;
     }
 }

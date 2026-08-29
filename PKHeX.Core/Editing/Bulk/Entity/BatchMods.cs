@@ -28,8 +28,8 @@ public static class BatchMods
         new TypeSuggestion<PKM>(nameof(PKM.EggMetDate), p => p.EggMetDate = p.MetDate),
         new TypeSuggestion<PKM>(nameof(PKM.MetDate), p => p.MetDate = p.EggMetDate),
 
-        new TypeSuggestion<PKM>(nameof(PKM.Nature), p => p.Format >= 8, p => p.Nature = p.StatNature),
-        new TypeSuggestion<PKM>(nameof(PKM.StatNature), p => p.Format >= 8, p => p.StatNature = p.Nature),
+        new TypeSuggestion<PKM>(nameof(PKM.Nature), p => p.Format >= 8, p => p.Nature = p.StatAlignment),
+        new TypeSuggestion<PKM>(nameof(PKM.StatAlignment), p => p.Format >= 8, p => p.StatAlignment = p.Nature),
         new TypeSuggestion<PKM>(nameof(PKM.Stats), p => p.ResetPartyStats()),
         new TypeSuggestion<PKM>(nameof(PKM.Ball), p => BallApplicator.ApplyBallLegalByColor(p)),
         new TypeSuggestion<PKM>(nameof(PKM.Heal), p => p.Heal()),
@@ -69,6 +69,7 @@ public static class BatchMods
         // Random
         new ComplexSet(nameof(PKM.PID), value => value is CONST_RAND, (pk, _) => pk.PID = Util.Rand32()),
         new ComplexSet(nameof(PKM.Gender), value => value is CONST_RAND, (pk, _) => pk.SetPIDGender(pk.Gender)),
+        new ComplexSet(nameof(PKM.Ball), value => value is CONST_RAND, (pk, _) => BallApplicator.ApplyBallLegalRandom(pk)),
         new ComplexSet(PROP_EVS, value => value is CONST_RAND, (pk, _) => SetRandomEVs(pk)),
         new ComplexSet(nameof(ITeraType.TeraTypeOverride), value => value is CONST_RAND, (pk, _) => SetRandomTeraType(pk)),
 

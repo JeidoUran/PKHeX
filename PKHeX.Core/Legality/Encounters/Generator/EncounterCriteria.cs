@@ -112,7 +112,7 @@ public readonly record struct EncounterCriteria : IFixedNature, IFixedAbilityNum
     /// Determines whether a specific Nature is specified in the criteria or if complex nature mutations are allowed.
     /// </summary>
     /// <returns>><see langword="true"/> if a Nature is specified or complex nature mutations are allowed; otherwise, <see langword="false"/>.</returns>
-    public bool IsSpecifiedNature() => Nature != Nature.Random || Mutations.IsComplexNature();
+    public bool IsSpecifiedNature() => Nature.IsFixed || Mutations.IsComplexNature();
 
     /// <summary>
     /// Determines whether a level range is specified in the criteria.
@@ -125,6 +125,12 @@ public readonly record struct EncounterCriteria : IFixedNature, IFixedAbilityNum
     /// </summary>
     /// <returns>><see langword="true"/> if an Ability is specified; otherwise, <see langword="false"/>.</returns>
     public bool IsSpecifiedAbility() => Ability != Any12H;
+
+    /// <summary>
+    /// Determines whether the shiny value is explicitly specified rather than set to random.
+    /// </summary>
+    /// <returns>><see langword="true"/> if a Shiny is specified; otherwise, <see langword="false"/>.</returns>
+    public bool IsSpecifiedShiny() => Shiny != Shiny.Random;
 
     /// <summary>
     /// Determines whether all IVs are specified in the criteria.
@@ -184,6 +190,20 @@ public readonly record struct EncounterCriteria : IFixedNature, IFixedAbilityNum
     };
 
     /// <summary>
+    /// Determines whether the specified shiny properties satisfy the shiny criteria based on the current <see cref="Shiny"/> setting.
+    /// </summary>
+    /// <returns>><see langword="true"/> if the index satisfies the shiny criteria; otherwise, <see langword="false"/>.</returns>
+    public bool IsSatisfiedShiny(uint xor, uint cmp) => Shiny switch
+    {
+        Shiny.Random => true,
+        Shiny.Never => xor > cmp, // not shiny
+        Shiny.AlwaysSquare => xor == 0, // square shiny
+        Shiny.AlwaysStar => xor < cmp && xor != 0, // star shiny
+        Shiny.Always => xor < cmp, // shiny
+        _ => false, // shouldn't be set
+    };
+
+    /// <summary>
     /// Determines whether the specified Nature satisfies the criteria.
     /// </summary>
     /// <param name="nature">The Nature to check.</param>
@@ -191,10 +211,24 @@ public readonly record struct EncounterCriteria : IFixedNature, IFixedAbilityNum
     public bool IsSatisfiedNature(Nature nature)
     {
         if (Mutations.HasFlag(AllowOnlyNeutralNature))
-            return nature.IsNeutral();
+            return nature.IsNeutral;
         if (Nature == Nature.Random)
             return true;
         return nature == Nature || Mutations.HasFlag(CanMintNature);
+    }
+
+    /// <summary>
+    /// Determines whether the Generation 3/4 PID satisfies the Nature criteria.
+    /// </summary>
+    /// <param name="pid">The original PID to check.</param>
+    /// <returns><see langword="true"/> if the Nature satisfies the criteria; otherwise, <see langword="false"/>.</returns>
+    public bool IsSatisfiedNature(uint pid)
+    {
+        if (Mutations.HasFlag(AllowOnlyNeutralNature))
+            return ((Nature)(pid % 25)).IsNeutral;
+        if (Nature == Nature.Random)
+            return true;
+        return Mutations.HasFlag(CanMintNature) || ((Nature)(pid % 25)) == Nature;
     }
 
     /// <summary>
@@ -300,7 +334,7 @@ public readonly record struct EncounterCriteria : IFixedNature, IFixedAbilityNum
     /// </summary>
     public Nature GetNature()
     {
-        if (Nature != Nature.Random)
+        if (Nature.IsFixed)
             return Nature;
         var result = (Nature)Util.Rand.Next(25);
         if (Mutations.HasFlag(AllowOnlyNeutralNature))
@@ -311,7 +345,6 @@ public readonly record struct EncounterCriteria : IFixedNature, IFixedAbilityNum
     /// <summary>
     /// Indicates if the <see cref="Form"/> is specified.
     /// </summary>
-    /// <returns></returns>
     public bool IsSpecifiedForm() => Form != -1;
 
     /// <summary>
@@ -508,6 +541,7 @@ public readonly record struct EncounterCriteria : IFixedNature, IFixedAbilityNum
     /// <summary>
     /// Gets the combined IVs as a single 32-bit integer, where each IV is packed into 5 bits.
     /// </summary>
+    /// <remarks>Little endian format (HP occupies the lowest bits)</remarks>
     public uint GetCombinedIVs() => (byte)IV_HP
                                   | (uint)IV_ATK << 5
                                   | (uint)IV_DEF << 10
@@ -553,6 +587,29 @@ public readonly record struct EncounterCriteria : IFixedNature, IFixedAbilityNum
         if (!IsSatisfiedIV(IV_SPD, (int)((iv32 >> 25) & 0x1F))) return false;
         return true;
     }
+
+    /// <summary>
+    /// Checks whether the IV at the specified index should be generated randomly.
+    /// </summary>
+    /// <param name="index">Stat index (internal order).</param>
+    /// <param name="value">Requested fixed IV value, if specified.</param>
+    /// <returns><see langword="true"/> if the IV should be random; otherwise, <see langword="false"/>.</returns>
+    public bool IsRandomIV(int index, out sbyte value) => (value = GetIVInternal(index)) == RandomIV;
+
+    /// <summary>
+    /// Gets the IV based on the specified index (internal order).
+    /// </summary>
+    /// <param name="index">Stat index (internal order).</param>
+    public sbyte GetIVInternal(int index) => index switch
+    {
+        0 => IV_HP,
+        1 => IV_ATK,
+        2 => IV_DEF,
+        3 => IV_SPE,
+        4 => IV_SPA,
+        5 => IV_SPD,
+        _ => throw new ArgumentOutOfRangeException(nameof(index), index, null),
+    };
 
     /// <summary>
     /// Gets the IV based on the specified index (visual order).

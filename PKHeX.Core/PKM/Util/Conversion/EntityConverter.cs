@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using static PKHeX.Core.EntityConverterResult;
 using static PKHeX.Core.GameVersion;
 
@@ -57,8 +58,8 @@ public static class EntityConverter
     /// <summary>
     /// Checks if the input <see cref="PKM"/> file is capable of being converted to the desired format.
     /// </summary>
-    /// <param name="pk"></param>
-    /// <param name="format"></param>
+    /// <param name="pk">PKM to convert</param>
+    /// <param name="format">Format to convert to</param>
     /// <returns>True if it can be converted to the requested format value.</returns>
     public static bool IsConvertibleToFormat(PKM pk, byte format)
     {
@@ -83,6 +84,15 @@ public static class EntityConverter
         {
             result = None;
             return pk;
+        }
+
+        if (pk is PKH pkh)
+        {
+            if (TryConvertFromHOME(pkh, destType, out var x))
+            {
+                result = Success;
+                return x;
+            }
         }
 
         var entity = ConvertPKM(pk, destType, fromType, out result);
@@ -168,6 +178,15 @@ public static class EntityConverter
 
         _ => GetFinalResult(pk, destType, ref result),
     };
+
+    private static bool TryConvertFromHOME(PKH pkh, Type destType, [NotNullWhen(true)] out PKM? result)
+    {
+        result = null;
+        var type = PKH.GetType(destType);
+        if (type is not HomeGameDataFormat.None)
+            result = pkh.ConvertToPKM(type);
+        return result != null;
+    }
 
     private static PKM? GetFinalResult(PKM pk, Type destType, ref EntityConverterResult result)
     {
@@ -318,14 +337,17 @@ public static class EntityConverter
     /// <summary>
     /// Checks if a <see cref="GBPKM"/> is incompatible with the Generation 1/2 destination environment.
     /// </summary>
+    /// <param name="pk">Target type PKM with misc properties accessible for checking.</param>
+    /// <param name="destJapanese">Whether the destination environment is Japanese</param>
+    /// <param name="srcJapanese">Whether the source PKM is Japanese</param>
     public static bool IsCompatibleGB(PKM pk, bool destJapanese, bool srcJapanese)
     {
         if (pk.Format > 2)
-            return true;
+            return true; // Upwards transfers are unaffected by language, and Gen3+ can represent all languages.
         if (destJapanese == srcJapanese)
-            return true;
+            return true; // Can trade between same language sets.
         if (pk is SK2 sk2 && sk2.IsPossible(srcJapanese))
-            return true;
+            return true; // Language differentiation
         return false;
     }
 }

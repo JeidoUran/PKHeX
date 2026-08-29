@@ -1,7 +1,7 @@
 0318	s	Saturne Vaincu à la Caverne Courage/Lac Vérité Restauré
 0350	s	Eau du Lac Vérité Restaurée/Peut Obtenir l'Entrée de Dialga/Palkia à Célestia
-0351	s	Dialga/Palkia Capturé
-0482	s	Dialga/Palkia Disparu des Colonnes Lances
+0351	r	Dialga/Palkia Capturé
+0482	r	Dialga/Palkia Disparu des Colonnes Lances
 0511	r	Créhelf Disparu
 0295	r	Créhelf Capturé
 0509	r	Créfollet (Caverne Vérité) Disparu
@@ -34,14 +34,15 @@
 2410	a	Rang Master en Catégorie Grâce
 2411	a	Rang Master en Catégorie Intelligence
 2412	a	Rang Master en Catégorie Robustesse
+2444	a	Connexion à la Connexion Wi-Fi Nintendo réussie
 0329	r	Motisma Capturé
 0665	s	Fantôme du Majordome Rencontré au Vieux Château
 0666	s	Fantôme de la Fillette Rencontré au Vieux Château
-0897	s	Antidote (Caché) Trouvé au Vieux Château
-1008	s	Vieux Gâteau Trouvé au Vieux Château
-1023	s	Orbe Adamant/Perlé Trouvé aux Colonnes Lances
-1233	s	Plaque Ombre Trouvée au Vieux Château
-1234	s	CT90 Trouvée au Vieux Château
+0897	h	Antidote (Caché) Trouvé au Vieux Château
+1008	i	Vieux Gâteau Trouvé au Vieux Château
+1023	i	Orbe Adamant/Perlé Trouvé aux Colonnes Lances
+1233	i	Plaque Ombre Trouvée au Vieux Château
+1234	i	CT90 Trouvée au Vieux Château
 2401	*	Chaussures de Course Désactivées
 2433	s	2ème Revanche Contre les Dresseurs Débloquée
 0251	g	Œuf de Ptiravi Reçu
@@ -56,7 +57,19 @@
 0134	g	Échange Interne Mustébouée Contre Pijako (Vestigion)
 0244	g	Échange Interne Charmina Contre Spectrum (Frimapic)
 0245	g	Échange Interne Écayon Contre Magicarpe (Route 226)
-0787	s	PV Plus Trouvé au Lac Vérité Séché
+0330	g	Globe Terrestre reçu (Rico Lexion)
+0331	g	Statue Arène reçue (Rico Lexion)
+0332	g	Coupe Grâce reçue (Rico Lexion)
+0333	g	Coupe Sang-froid reçue (Rico Lexion)
+0334	g	Coupe Beauté reçue (Rico Lexion)
+0335	g	Coupe Robustesse reçue (Rico Lexion)
+0336	g	Coupe Intelligence reçue (Rico Lexion)
+0337	g	Cristal Bleu reçu (Rico Lexion)
+0338	g	Cristal Rose reçu (Rico Lexion)
+0339	g	Cristal Rouge reçu (Rico Lexion)
+0340	g	Cristal Jaune reçu (Rico Lexion)
+0347	g	Tous les articles reçus (Rico Lexion)
+0787	h	PV Plus (Caché) Trouvé au Lac Vérité Séché
 2507	s	Est Entré au Show Capture du Parc des Amis
 1409	t	Joggeur Amir Vaincu (Route 209 - Matin)
 1448	t	Agent Jeff Vaincu (Route 212 - Nuit)
@@ -218,5 +231,5 @@
 2134	t	A Eu 1ère Revanche Contre Vénérable Théobald (Route 210)
 2136	t	A Eu 2ème Revanche Contre Vénérable Théobald (Route 210)
 2137	t	A Eu Revanche Contre Vénérable Clément (Route 224)
-2733	s	A Appris Un Mot Savant (Aujourd'hui - Frimapic)
+2733	*	A Appris Un Mot Savant (Aujourd'hui - Frimapic)
 2738	t	Rival Vaincu à l'Aire de Survie (Samedi/Dimanche Actuel)

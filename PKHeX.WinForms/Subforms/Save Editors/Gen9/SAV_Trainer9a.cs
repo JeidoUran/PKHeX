@@ -21,16 +21,13 @@ public sealed partial class SAV_Trainer9a : Form
         SAV = (SAV9ZA)(Origin = sav).Clone();
 
         Loading = true;
-        if (Main.Unicode)
-            TB_OTName.Font = FontUtil.GetPKXFont();
+        if (!Main.Unicode)
+            TB_OTName.DisableInGameFont = true;
 
         B_MaxCash.Click += (_, _) => MT_Money.Text = SAV.MaxMoney.ToString();
         B_RoyaleRegularMax.Click += (_, _) => MT_RoyaleRegular.Text = 310_000.ToString();
         B_RoyaleInfiniteMax.Click += (_, _) => MT_RoyaleInfinite.Text = 50_000.ToString();
         B_HyperspaceSurveyPoints.Click += (_, _) => MT_HyperspaceSurveyPoints.Text = 100_000.ToString();
-
-        CB_Gender.Items.Clear();
-        CB_Gender.Items.AddRange(Main.GenderSymbols.Take(2).ToArray()); // m/f depending on unicode selection
 
         GetImages();
         GetComboBoxes();
@@ -107,11 +104,11 @@ public sealed partial class SAV_Trainer9a : Form
     private void GetTextBoxes()
     {
         // Get Data
-        CB_Gender.SelectedIndex = SAV.Gender;
+        CB_Gender.Gender = SAV.Gender;
 
         // Display Data
         TB_OTName.Text = SAV.OT;
-        trainerID1.LoadIDValues(SAV, SAV.Generation);
+        trainerID1.LoadTrainer(SAV);
         MT_Money.Text = SAV.Money.ToString();
         CB_Language.SelectedValue = SAV.Language;
 
@@ -165,15 +162,18 @@ public sealed partial class SAV_Trainer9a : Form
 
     private void SaveTrainerInfo()
     {
-        if (SAV.Gender != (byte)CB_Gender.SelectedIndex)
+        if (SAV.Gender != CB_Gender.Gender)
         {
-            SAV.Gender = (byte)CB_Gender.SelectedIndex;
+            SAV.Gender = CB_Gender.Gender;
             SAV.PlayerFashion.Reset();
         }
 
         SAV.Money = Util.ToUInt32(MT_Money.Text);
         SAV.Language = WinFormsUtil.GetIndex(CB_Language);
-        SAV.OT = TB_OTName.Text;
+
+        // only modify if changed (preserve trash bytes?)
+        if (SAV.OT != TB_OTName.Text)
+            SAV.OT = TB_OTName.Text;
 
         // Save PlayTime
         SAV.PlayedHours = ushort.Parse(MT_Hours.Text);
@@ -189,14 +189,10 @@ public sealed partial class SAV_Trainer9a : Form
 
     private void ClickOT(object sender, MouseEventArgs e)
     {
-        TextBox tb = sender as TextBox ?? TB_OTName;
         // Special Character Form
         if (ModifierKeys != Keys.Control)
             return;
-
-        var d = new TrashEditor(tb, SAV, SAV.Generation, SAV.Context);
-        d.ShowDialog();
-        tb.Text = d.FinalString;
+        TrashEditor.Show(TB_OTName, SAV, SAV.MyStatus.OriginalTrainerTrash);
     }
 
     private void B_Cancel_Click(object sender, EventArgs e)
@@ -242,7 +238,7 @@ public sealed partial class SAV_Trainer9a : Form
         if (ModifierKeys == (Keys.Alt | Keys.Control | Keys.Shift))
         {
             ColorfulScrew9a.SetAllScrews(SAV);
-            System.Media.SystemSounds.Asterisk.Play();
+            WinFormsUtil.Asterisk();
         }
 
         var itemName = GameInfo.Strings.Item[ColorfulScrew9a.ColorfulScrewItemIndex];

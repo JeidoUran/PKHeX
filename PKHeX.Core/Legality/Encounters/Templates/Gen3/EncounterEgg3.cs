@@ -79,14 +79,14 @@ public sealed record EncounterEgg3(ushort Species, GameVersion Version) : IEncou
         // Get a random PID that matches gender/nature/ability criteria
         var pi = PersonalTable.E[Species];
         var gr = pi.Gender;
-        var pid = GetRandomPID(criteria, gr);
+        var pid = GetRandomPID(criteria, gr, tr.ID32);
         pk.PID = pid;
         pk.RefreshAbility((int)(pid % 2));
 
         return pk;
     }
 
-    private uint GetRandomPID(in EncounterCriteria criteria, byte gr)
+    private uint GetRandomPID(in EncounterCriteria criteria, byte gr, uint id32)
     {
         var seed = Util.Rand32();
         while (true)
@@ -97,7 +97,7 @@ public sealed record EncounterEgg3(ushort Species, GameVersion Version) : IEncou
             var gender = EntityGender.GetFromPIDAndRatio(pid, gr);
             if (criteria.IsSpecifiedGender() && !criteria.IsSatisfiedGender(gender))
                 continue;
-            if (criteria.IsSpecifiedNature() && !criteria.IsSatisfiedNature((Nature)(pid % 25)))
+            if (criteria.IsSpecifiedNature() && !criteria.IsSatisfiedNature(pid))
                 continue;
             if (criteria.IsSpecifiedAbility() && !criteria.IsSatisfiedAbility((byte)(pid % 2)))
                 continue;
@@ -108,6 +108,10 @@ public sealed record EncounterEgg3(ushort Species, GameVersion Version) : IEncou
 
             if (!Daycare3.IsValidProcPID(pid, Version))
                 continue; // 0-value PID is invalid
+
+            var shiny = ShinyUtil.GetIsShiny3(id32, pid);
+            if (criteria.Shiny.IsShiny() != shiny)
+                continue;
 
             return pid;
         }

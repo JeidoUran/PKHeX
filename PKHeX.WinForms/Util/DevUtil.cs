@@ -17,8 +17,7 @@ public static class DevUtil
     {
         t.DropDownItems.Add(GetTranslationUpdater(Keys.D));
         t.DropDownItems.Add(GetPogoPickleReload(Keys.P));
-        t.DropDownItems.Add(GetHexImporter(Keys.I));
-        t.DropDownItems.Add(GetPluginInfo(Keys.L, plugins));
+        t.DropDownItems.Add(GetPluginInfo(Keys.U, plugins));
     }
 
     private static string DefaultLanguage => Main.CurrentLanguage;
@@ -37,13 +36,6 @@ public static class DevUtil
         DumpStringsMessage();
         UpdateTranslations();
         IsUpdatingTranslations = false;
-    }
-
-    private static ToolStripMenuItem GetHexImporter(Keys key)
-    {
-        var ti = GetHiddenMenu(key);
-        ti.Click += (_, _) => OpenFileFromClipboardHex();
-        return ti;
     }
 
     private static ToolStripMenuItem GetTranslationUpdater(Keys key)
@@ -72,25 +64,6 @@ public static class DevUtil
         ShortcutKeys = Keys.Control | Keys.Alt | key,
         Visible = false,
     };
-
-    private static void OpenFileFromClipboardHex()
-    {
-        var hex = Clipboard.GetText().Trim();
-        if (string.IsNullOrEmpty(hex))
-        {
-            WinFormsUtil.Alert("Clipboard is empty.");
-            return;
-        }
-        try
-        {
-            var data = Convert.FromHexString(hex.Replace(" ", ""));
-            Application.OpenForms.OfType<Main>().First().OpenFile(data, "", "");
-        }
-        catch (FormatException)
-        {
-            WinFormsUtil.Alert("Clipboard does not contain valid hex data.");
-        }
-    }
 
     private static void DisplayPluginList(List<IPlugin> plugins)
     {
@@ -139,8 +112,11 @@ public static class DevUtil
         foreach (var lang in GameLanguage.AllSupportedLanguages) // get all languages ready to go
             _ = WinFormsTranslator.GetDictionary(lang);
         WinFormsTranslator.SetUpdateMode();
-        WinFormsTranslator.LoadSettings<PKHeXSettings>(DefaultLanguage);
-        WinFormsTranslator.LoadEnums(EnumTypesToTranslate, DefaultLanguage);
+        WinFormsTranslator.LoadProperties<PKHeXSettings>(DefaultLanguage, typeof(SettingsEditor));
+        WinFormsTranslator.LoadPropertyGridFields<PKHeXSettings>(DefaultLanguage);
+        WinFormsTranslator.LoadPropertyGridFields<BoxExportSettings>(DefaultLanguage, includeTop: true);
+        WinFormsTranslator.LoadPropertyGridFields<EncounterCriteria>(DefaultLanguage, includeTop: true);
+        WinFormsTranslator.LoadEnums(DefaultLanguage, EnumTypesToTranslate);
         WinFormsTranslator.LoadAllForms(types, LoadBanlist); // populate with every possible control
         WinFormsTranslator.TranslateControls(GetExtraControls(), DefaultLanguage);
         var dir = GetResourcePath("PKHeX.WinForms", "Resources", "text");
@@ -179,8 +155,16 @@ public static class DevUtil
         typeof(PokeSize),
         typeof(PokeSizeDetailed),
 
+        typeof(BattleTemplateToken),
+
+        typeof(PokeathlonStat4),
+        typeof(PokeathlonEvent4),
         typeof(PassPower5),
         typeof(Funfest5Mission),
+        typeof(JoinAvenueCeilingColor5),
+        typeof(MedalRank5),
+        typeof(HabitatCompletion5),
+        typeof(BattleChateauRank6),
         typeof(OPower6Index),
         typeof(OPower6FieldType),
         typeof(OPower6BattleType),
@@ -207,6 +191,10 @@ public static class DevUtil
         yield return new Label { Name = $"{nameof(SAV_Misc3)}.L_RecordCleared" };
         yield return new Label { Name = $"{nameof(SAV_Misc3)}.L_CurrentStreak" };
         yield return new Label { Name = $"{nameof(SAV_Misc3)}.L_RecordStreak" };
+
+        yield return new Label { Name = SAVEditor.SimpleEditorKey };
+        yield return new Label { Name = "PropertyGrid.Value.True" };
+        yield return new Label { Name = "PropertyGrid.Value.False" };
     }
 
     /// <summary>
@@ -243,6 +231,12 @@ public static class DevUtil
         $"{nameof(SAV_Misc3)}.L_Stat", // Dynamic labels
         $"{nameof(SAV_Donut9a)}.L_Stat", // Dynamic labels
 
+        // unknown fields in Join Avenue, not worth translating until we know what they do.
+        $"{nameof(SAV_JoinAvenue)}.L_Unk",
+        $"{nameof(SAV_JoinAvenue)}.L_IsFlag",
+        $"{nameof(SAV_JoinAvenue)}.L_Unused",
+        $"{nameof(SAV_Medals5)}.L_Unknown",
+
         SlotList.DynamicLabelPrefix,
         $"{nameof(StorageSlotType)}.{nameof(StorageSlotType.None)}",
         $"{nameof(StorageSlotType)}.{nameof(StorageSlotType.Box)}",
@@ -252,6 +246,9 @@ public static class DevUtil
         $"{nameof(StorageSlotType)}.{nameof(StorageSlotType.FusedNecrozmaS)}",
         $"{nameof(StorageSlotType)}.{nameof(StorageSlotType.FusedNecrozmaM)}",
         $"{nameof(StorageSlotType)}.{nameof(StorageSlotType.FusedCalyrex)}",
+
+        ..Enum.GetValues<GameVersion>().Where(z => !(z.IsValidSavedVersion() || z == GameVersion.Any)).Select(z => $"{nameof(GameVersion)}.{z}"),
+        $"{nameof(LanguageID)}.{nameof(LanguageID.UNUSED_6)}",
     ];
 
     // paths should match the project structure, so that the files are in the correct place when the logic updates them.
@@ -273,7 +270,7 @@ public static class DevUtil
         {
             var location = Path.Combine(dir, set.GetFileName(lang));
             var json = JsonSerializer.Serialize(entries, set.Info);
-            File.WriteAllText(location, json);
+            File.WriteAllText(location, json + Environment.NewLine);
         }
     }
 

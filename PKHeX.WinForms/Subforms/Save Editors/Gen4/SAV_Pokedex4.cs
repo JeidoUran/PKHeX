@@ -41,8 +41,6 @@ public partial class SAV_Pokedex4 : Form
             CB_DexUpgraded.Items.Add(mode);
         if (SAV.DexUpgraded < CB_DexUpgraded.Items.Count)
             CB_DexUpgraded.SelectedIndex = SAV.DexUpgraded;
-
-        CB_Species.KeyDown += WinFormsUtil.RemoveDropCB;
     }
 
     private readonly CheckBox[] CL;
@@ -244,7 +242,7 @@ public partial class SAV_Pokedex4 : Form
             SAV.Dex.ModifyAll(i, args, lang);
 
         GetEntry();
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private void CHK_Seen_CheckedChanged(object sender, EventArgs e)

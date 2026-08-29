@@ -21,7 +21,7 @@ public static class EncounterMovesetGenerator
     /// </summary>
     public static void ResetFilters() => PriorityList = GetAllGroups();
 
-    private static EncounterTypeGroup[] GetAllGroups() => Enum.GetValues<EncounterTypeGroup>();
+    private static EncounterTypeGroup[] GetAllGroups() => Enum.GetValues<EncounterTypeGroup>()[1..];
 
     /// <summary>
     /// Gets possible <see cref="IEncounterable"/> objects that allow all moves requested to be learned.
@@ -211,7 +211,7 @@ public static class EncounterMovesetGenerator
         public byte Form => 0;
         public bool IsShiny => false;
         public ushort Location => 0;
-        public ushort EggLocation => 0;
+        ushort ILocation.EggLocation => 0;
         public AbilityPermission Ability => 0;
         public Ball FixedBall => 0;
         public Shiny Shiny => 0;

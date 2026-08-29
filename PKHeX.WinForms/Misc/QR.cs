@@ -13,7 +13,7 @@ public partial class QR : Form
     private readonly Image icon;
     private Bitmap qr;
 
-    private readonly string[] Lines;
+    private readonly ReadOnlyMemory<string> Lines;
     private string extraText = string.Empty;
 
     public QR(Bitmap qr, Image icon, params string[] lines)
@@ -31,6 +31,7 @@ public partial class QR : Form
     public QR(Bitmap qr, Image icon, PKM pk, params string[] lines)
     {
         InitializeComponent();
+        WinFormsUtil.TranslateInterface(this, Main.CurrentLanguage);
         this.qr = qr;
         this.icon = icon;
         Lines = lines;
@@ -70,11 +71,11 @@ public partial class QR : Form
     {
         SuspendLayout();
         ResumeLayout();
-        var font = !Main.Unicode ? Font : FontUtil.GetPKXFont(8.25f);
+        var font = !Main.Unicode ? Font : FontUtil.GetFont(Entity?.Context ?? FontUtil.DefaultContext);
 
         var width = Math.Max(qr.Width, 370);
         var height = qr.Height + 50;
-        var img = QRImageUtil.GetQRImageExtended(font, qr, icon, width, height, Lines, extraText);
+        var img = QRImageUtil.GetQRImageExtended(font, qr, icon, width, height, Lines.Span, extraText);
         PB_QR.Image = img;
     }
 

@@ -45,17 +45,16 @@ public sealed class PGT(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
     public int ItemSubID { get => ReadInt32LittleEndian(Data[0x8..]); set => WriteInt32LittleEndian(Data[0x8..], value); }
     public int PokewalkerCourseID { get => Data[0x4]; set => Data[0x4] = (byte)value; }
 
+    private Span<byte> DataGift => Data.Slice(8, PokeCrypto.SIZE_4PARTY);
+
     public PK4 PK
     {
-        get => field ??= new PK4(Data.Slice(8, PokeCrypto.SIZE_4PARTY).ToArray());
+        get => field ??= new PK4(DataGift.ToArray());
         set
         {
-            field = value;
-            var data = value.Data;
-            bool zero = !data.ContainsAnyExcept<byte>(0); // all zero
-            if (!zero)
-                data = PokeCrypto.EncryptArray45(data);
-            data.CopyTo(Data[8..]);
+            field = value.Clone(); // cache the PK4 for future use
+            value.Data.CopyTo(DataGift);
+            VerifyGiftEncryption();
         }
     }
 
@@ -63,29 +62,27 @@ public sealed class PGT(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
     {
         // Ensure PGT content is encrypted
         var clone = new PGT(Data.ToArray());
-        clone.VerifyPKEncryption();
+        clone.VerifyGiftEncryption();
         return clone.Data;
     }
 
     /// <summary>
-    /// Double-checks the encryption of the gift data for Pokémon data.
+    /// Double-checks the encryption of the gift data.
     /// </summary>
     /// <returns>True if data was encrypted, false if the data was not modified.</returns>
-    public bool VerifyPKEncryption()
+    public bool VerifyGiftEncryption()
     {
         if (GiftType is not (Pokémon or PokémonEgg))
             return false; // not encrypted
-        if (ReadUInt32LittleEndian(Data[(0x64 + 8)..]) != 0)
-            return false; // already encrypted (unused PK4 field, zero)
-        EncryptPK();
-        return true;
-    }
 
-    private void EncryptPK()
-    {
-        var span = Data.Slice(8, PokeCrypto.SIZE_4PARTY);
-        var ekdata = PokeCrypto.EncryptArray45(span);
-        ekdata.CopyTo(span);
+        var gift = DataGift;
+        var isEmpty = !gift.ContainsAnyExcept<byte>(0); // all zero
+        if (isEmpty) // shouldn't ever be empty, just return if so.
+            return false;
+        if (PokeCrypto.IsEncrypted45(gift)) // unused PK4 ribbon bits
+            return false;
+        PokeCrypto.Encrypt45(gift);
+        return true;
     }
 
     public GiftType4 GiftType { get => (GiftType4)CardType; set => CardType = (byte)value; }
@@ -167,6 +164,7 @@ public sealed class PGT(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
             return;
 
         var seed = Util.Rand32();
+        var trXor = (tr.TID16 ^ tr.SID16) >> 3;
         bool filterIVs = criteria.IsSpecifiedIVs(2);
         while (true)
         {
@@ -174,7 +172,7 @@ public sealed class PGT(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
             var a = LCRNG.Next16(ref seed);
             var b = LCRNG.Next16(ref seed);
             var pid = (b << 16) | a;
-            if (criteria.IsSpecifiedNature() && !criteria.IsSatisfiedNature((Nature)(pid % 25)))
+            if (criteria.IsSpecifiedNature() && !criteria.IsSatisfiedNature(pid))
                 continue;
             var c = LCRNG.Next15(ref seed);
             var d = LCRNG.Next15(ref seed);
@@ -185,7 +183,6 @@ public sealed class PGT(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
                 continue;
 
             var xor = (a ^ b) >> 3;
-            var trXor = (tr.TID16 ^ tr.SID16) >> 3;
             bool shiny = xor == trXor;
             if (criteria.Shiny.IsShiny() != shiny)
                 continue;
@@ -212,7 +209,7 @@ public sealed class PGT(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
             // Check for anti-shiny.
             var xor = (a ^ b) >> 3;
             bool arng = false;
-            if (criteria.IsSpecifiedNature() && !criteria.IsSatisfiedNature((Nature)(pid % 25)))
+            if (criteria.IsSpecifiedNature() && !criteria.IsSatisfiedNature(pid))
             {
                 while (true)
                 {
@@ -224,7 +221,7 @@ public sealed class PGT(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
                     arng = true;
                     break;
                 }
-                if (!criteria.IsSatisfiedNature((Nature)(pid % 25)))
+                if (!criteria.IsSatisfiedNature(pid))
                     continue;
             }
 
@@ -374,7 +371,7 @@ public sealed class PGT(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
                     break;
                 pid = ARNG.Next(pid);
             }
-            if (criteria.IsSpecifiedNature() && !criteria.IsSatisfiedNature((Nature)(pid % 25)))
+            if (criteria.IsSpecifiedNature() && !criteria.IsSatisfiedNature(pid))
                 continue;
             if (EntityGender.GetFromPIDAndRatio(pid, gr) != gender)
                 continue;

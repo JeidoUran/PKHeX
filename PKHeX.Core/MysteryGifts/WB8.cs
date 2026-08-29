@@ -459,7 +459,7 @@ public sealed class WB8(Memory<byte> raw) : DataMysteryGift(raw),
             MetLocation = Location,
             EggLocation = EggLocation,
         };
-        if (EggLocation == 0)
+        if (EggLocation == 0) // HOME gifts need to be remapped to in-game. Nothing legitimately has a 0.
             pk.EggLocation = Locations.Default8bNone;
 
         pk.HealPP();
@@ -504,7 +504,7 @@ public sealed class WB8(Memory<byte> raw) : DataMysteryGift(raw),
 
         if (IsScalarFixed)
         {
-            pk.HeightScalar = pk.WeightScalar = GetHomeScalar();
+            (pk.HeightScalar, pk.WeightScalar) = GetHomeScalars();
         }
         else
         {
@@ -525,11 +525,14 @@ public sealed class WB8(Memory<byte> raw) : DataMysteryGift(raw),
     /// <summary>
     ///  HOME Gift Manaphy is a special case where height/weight is fixed.
     /// </summary>
-    public bool IsScalarFixed => CardID is 9026;
+    public bool IsScalarFixed => CardID is (9015 or 9016 or 9017) or 9026;
 
-    private byte GetHomeScalar() => CardID switch
+    private (byte Height, byte Weight) GetHomeScalars() => CardID switch
     {
-        9026 => 128,
+        9015 => (147, 160), // Turtwig
+        9016 => (146, 063), // Chimchar
+        9017 => (061, 203), // Piplup
+        9026 => (128, 128), // Manaphy
         _ => throw new ArgumentException(),
     };
 
@@ -549,12 +552,12 @@ public sealed class WB8(Memory<byte> raw) : DataMysteryGift(raw),
     private void SetPINGA(PB8 pk, in EncounterCriteria criteria)
     {
         var pi = pk.PersonalInfo;
-        pk.Nature = pk.StatNature = criteria.GetNature((sbyte)Nature == -1 ? Nature.Random : Nature);
+        pk.Nature = pk.StatAlignment = criteria.GetNature((sbyte)Nature == -1 ? Nature.Random : Nature);
         pk.Gender = criteria.GetGender(Gender, pi);
         var av = GetAbilityIndex(criteria);
         pk.RefreshAbility(av);
         SetPID(pk);
-        SetIVs(pk);
+        SetIVs(pk, criteria);
     }
 
     private int GetAbilityIndex(in EncounterCriteria criteria) => AbilityType switch
@@ -611,31 +614,12 @@ public sealed class WB8(Memory<byte> raw) : DataMysteryGift(raw),
         pk.PID = GetPID(pk, PIDType);
     }
 
-    private void SetIVs(PB8 pk)
+    private void SetIVs(PB8 pk, in EncounterCriteria criteria)
     {
         Span<int> finalIVs = stackalloc int[6];
         GetIVs(finalIVs);
-        var ivflag = finalIVs.IndexOfAny(0xFC, 0xFD, 0xFE);
         var rng = Util.Rand;
-        if (ivflag == -1) // Random IVs
-        {
-            for (int i = 0; i < finalIVs.Length; i++)
-            {
-                if (finalIVs[i] > 31)
-                    finalIVs[i] = rng.Next(32);
-            }
-        }
-        else // 1/2/3 perfect IVs
-        {
-            int IVCount = finalIVs[ivflag] - 0xFB;
-            do { finalIVs[rng.Next(6)] = 31; }
-            while (finalIVs.Count(31) < IVCount);
-            for (int i = 0; i < finalIVs.Length; i++)
-            {
-                if (finalIVs[i] != 31)
-                    finalIVs[i] = rng.Next(32);
-            }
-        }
+        ApplyTemplateIVs(finalIVs, criteria, rng, _ => rng.Next(32));
         pk.SetIVs(finalIVs);
     }
 
@@ -693,7 +677,7 @@ public sealed class WB8(Memory<byte> raw) : DataMysteryGift(raw),
         else
         {
             if (!Shiny.IsValid(pk)) return false;
-            if (!IsMatchEggLocation(pk)) return false;
+            if (!IsMatchEggLocationInternal(pk)) return false;
             if (!IsMatchLocation(pk)) return false;
         }
 
@@ -705,10 +689,10 @@ public sealed class WB8(Memory<byte> raw) : DataMysteryGift(raw),
 
         if (IsScalarFixed)
         {
-            var scalar = GetHomeScalar();
-            if (pk is IScaledSize hw && (hw.HeightScalar != scalar || hw.WeightScalar != scalar))
+            var scalar = GetHomeScalars();
+            if (pk is IScaledSize hw && (hw.HeightScalar != scalar.Height || hw.WeightScalar != scalar.Weight))
                 return false;
-            if (pk is IScaledSize3 s && s.Scale != scalar)
+            if (pk is IScaledSize3 s && s.Scale != scalar.Height)
                 return false;
         }
 
@@ -721,7 +705,7 @@ public sealed class WB8(Memory<byte> raw) : DataMysteryGift(raw),
         return pk.PID == GetPID(pk, (ShinyType8)type);
     }
 
-    protected override bool IsMatchEggLocation(PKM pk)
+    protected override bool IsMatchEggLocationInternal(PKM pk)
     {
         var expect = pk is PB8 ? Locations.Default8bNone : 0;
         return pk.EggLocation == expect;

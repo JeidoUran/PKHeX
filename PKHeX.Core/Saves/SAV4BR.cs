@@ -153,8 +153,8 @@ public sealed class SAV4BR : SaveFile, IBoxDetailName
     // Configuration
     protected override SAV4BR CloneInternal() => new(this);
 
-    protected override int SIZE_STORED => PokeCrypto.SIZE_4STORED;
-    protected override int SIZE_PARTY => PokeCrypto.SIZE_4STORED + 84;
+    public override int SIZE_STORED => PokeCrypto.SIZE_4STORED;
+    public override int SIZE_PARTY => PokeCrypto.SIZE_4STORED + 84;
     public override BK4 BlankPKM => new();
     public override Type PKMType => typeof(BK4);
 
@@ -314,6 +314,9 @@ public sealed class SAV4BR : SaveFile, IBoxDetailName
         set => StringConverter4GC.SetStringUnicodeBR(value, BirthDayTrash);
     }
 
+    /// <summary>
+    /// <see cref="LocaleNDS4.LegalCountries"/>
+    /// </summary>
     public int Country { get => ReadUInt16BigEndian(Data[0x3C0..]); set => WriteUInt16BigEndian(Data[0x578..], (ushort)value); }
     public int Region { get => ReadUInt16BigEndian(Data[0x3C2..]); set => WriteUInt16BigEndian(Data[0x57A..], (ushort)value); }
 
@@ -463,14 +466,8 @@ public sealed class SAV4BR : SaveFile, IBoxDetailName
         SetString(span, value, BoxNameLength / 2, StringConverterOption.ClearZero);
     }
 
-    protected override BK4 GetPKM(byte[] data)
-    {
-        if (data.Length != SIZE_STORED)
-            Array.Resize(ref data, SIZE_STORED);
-        return BK4.ReadUnshuffle(data);
-    }
-
-    protected override byte[] DecryptPKM(byte[] data) => data;
+    protected override BK4 GetPKM(Memory<byte> data) => new(data);
+    protected override void DecryptPKM(Span<byte> data) => PokeCrypto.Decrypt4BE(data[..SIZE_STORED]);
 
     protected override void SetPKM(PKM pk, bool isParty = false)
     {
@@ -482,8 +479,12 @@ public sealed class SAV4BR : SaveFile, IBoxDetailName
 
     protected override void SetPartyValues(PKM pk, bool isParty)
     {
-        if (pk is G4PKM g4)
-            g4.Sanity = isParty ? (ushort)0xC000 : (ushort)0x4000;
+        if (pk is not BK4 bk4)
+            return;
+
+        // Update sanity flags to the correct state
+        bk4.IsDecryptedStateBox = true;
+        bk4.IsDecryptedStateParty = isParty;
     }
 
     /// <summary>
@@ -493,21 +494,19 @@ public sealed class SAV4BR : SaveFile, IBoxDetailName
     /// <returns>Where the PKM was found, or (255, 255) otherwise</returns>
     public (byte Box, byte Slot) FindSlot(PKM pk)
     {
-        var party = PartyData;
         for (byte slot = 0; slot < PartyCount; slot++)
         {
-            PKM other = party[slot];
-            if (pk.PID == other.PID && pk.DecryptedBoxData.SequenceEqual(other.DecryptedBoxData))
+            var other = GetPartySlotAtIndex(slot);
+            if (pk.EqualsStored(other))
                 return (0, slot);
         }
 
-        var boxes = BoxData;
         for (byte box = 0; box < BoxCount; box++)
         {
             for (byte slot = 0; slot < BoxSlotCount; slot++)
             {
-                PKM other = boxes[(box * BoxSlotCount) + slot];
-                if (pk.PID == other.PID && pk.DecryptedBoxData.SequenceEqual(other.DecryptedBoxData))
+                var other = GetBoxSlotAtIndex(box, slot);
+                if (pk.EqualsStored(other))
                     return (++box, slot);
             }
         }

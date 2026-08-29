@@ -50,6 +50,10 @@ public static class MessageStrings
 
     public static string MsgConfirmQuitProgram { get; set; } = "Quit PKHeX?";
 
+    public static string MsgFileDelete { get; set; } = "Delete this file?";
+    public static string MsgFileDeleteFail { get; set; } = "Unable to delete file.";
+    public static string MsgFileDeleteSuccess { get; set; } = "File deleted successfully.";
+
     public static string MsgFileLoad { get; set; } = "File Loaded:";
     public static string MsgFileLoadAllZero { get; set; } = "File is uninitialized (all zero). Please ensure it was properly saved.";
     public static string MsgFileLoadAllFFFF { get; set; } = "File is uninitialized (all 0xFF). Please ensure it was properly saved.";
@@ -126,6 +130,15 @@ public static class MessageStrings
     public static string MsgDatabaseAdvice { get; set; } = "Please dump all boxes from a save file, then ensure the '{0}' folder exists.";
     public static string MsgDatabaseExport { get; set; } = "Save to PKHeX's database?";
     public static string MsgDatabaseLoad { get; set; } = "Load from PKHeX's database?";
+
+    #endregion
+
+    #region Troubleshooting
+
+    public static string MsgTroubleshootingClipboardEmpty { get; set; } = "Clipboard is empty.";
+    public static string MsgTroubleshootingClipboardInvalidHex { get; set; } = "Clipboard does not contain a valid hex string.";
+    public static string MsgTroubleshootingPluginListHeader { get; set; } = "Loaded {0} plugins:";
+    public static string MsgTroubleshootingPluginListEmpty { get; set; } = "No plugins loaded.";
 
     #endregion
 

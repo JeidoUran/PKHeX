@@ -12,7 +12,7 @@ public sealed class PGF(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
     public PGF() : this(new byte[Size]) { }
     public override PGF Clone() => new(Data.ToArray());
 
-    public int RestrictLanguage { get; set; } // None
+    public byte RestrictLanguage { get; set; } // None
     public byte RestrictVersion { get; set; } // Permit All
 
     public const int Size = 0xCC;
@@ -207,6 +207,8 @@ public sealed class PGF(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
             Year = (byte)dt.Year;
         }
 
+        var language = Language != 0 ? Language: RestrictLanguage != 0 ? RestrictLanguage : (int)Core.Language.GetSafeLanguage456((LanguageID)tr.Language);
+
         byte currentLevel = Level > 0 ? Level : (byte)(1 + rnd.Next(100));
         var pi = PersonalTable.B2W2.GetFormEntry(Species, Form);
         PK5 pk = new()
@@ -214,10 +216,9 @@ public sealed class PGF(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
             Species = Species,
             HeldItem = HeldItem,
             MetLevel = currentLevel,
-            Nature = (sbyte)Nature != -1 ? Nature : (Nature)rnd.Next(25),
             Form = Form,
             Version = GetVersion(tr, rnd),
-            Language = Language == 0 ? tr.Language : Language,
+            Language = language,
             Ball = Ball,
             Move1 = Move1,
             Move2 = Move2,
@@ -272,7 +273,7 @@ public sealed class PGF(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
         {
             pk.TID16 = tr.TID16;
             pk.SID16 = tr.SID16;
-            pk.OriginalTrainerName = tr.OT;
+            pk.OriginalTrainerName = EncounterUtil.GetTrainerName(tr, language);
             pk.OriginalTrainerGender = tr.Gender;
         }
         else // Hardcoded
@@ -301,9 +302,23 @@ public sealed class PGF(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
     {
         if (OriginGame != 0)
             return (GameVersion)OriginGame;
-        if (tr.Generation <= 5)
-            return tr.Version;
-        // Gen6+, give random Gen5 game
+
+        // Try to match trainer
+        var restrict = RestrictVersion == 0 ? 3 : RestrictVersion;
+        var input = (uint)(tr.Version - GameVersion.W);
+        if (input <= 3)
+        {
+            if ((restrict & (1 << (int)input)) != 0)
+                return tr.Version;
+        }
+
+        // Can't match trainer. Assign a random from the restriction.
+        return GetVersionRandom(rnd);
+    }
+
+    private GameVersion GetVersionRandom(Random rnd)
+    {
+        // cyclic random, attempt only 4 times to avoid infinite loop if restriction is somehow invalid.
         var bias = rnd.Next(4);
         for (int i = 0; i < 4; i++)
         {
@@ -330,7 +345,7 @@ public sealed class PGF(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
         var av = GetAbilityIndex(criteria);
         SetPID(pk, av);
         pk.RefreshAbility(av);
-        SetIVs(pk);
+        SetIVs(pk, criteria);
     }
 
     private int GetAbilityIndex(in EncounterCriteria criteria) => AbilityType switch
@@ -387,13 +402,12 @@ public sealed class PGF(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
         _ => Shiny.Random, // 1
     };
 
-    private void SetIVs(PK5 pk)
+    private void SetIVs(PK5 pk, in EncounterCriteria criteria)
     {
         Span<int> finalIVs = stackalloc int[6];
         GetIVs(finalIVs);
         var rnd = Util.Rand;
-        for (int i = 0; i < finalIVs.Length; i++)
-            finalIVs[i] = finalIVs[i] == 0xFF ? rnd.Next(32) : finalIVs[i];
+        ApplyTemplateIVs(finalIVs, criteria, rnd, static _ => Util.Rand.Next(32));
         pk.SetIVs(finalIVs);
     }
 
@@ -411,7 +425,7 @@ public sealed class PGF(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
             if (OriginGame != 0 && (GameVersion)OriginGame != pk.Version) return false;
             if (Language != 0 && Language != pk.Language) return false;
 
-            if (!IsMatchEggLocation(pk)) return false;
+            if (!IsMatchEggLocationInternal(pk)) return false;
             if (Location != pk.MetLocation) return false;
         }
         else
@@ -465,5 +479,21 @@ public sealed class PGF(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
         var bitIndex = (int)(version - GameVersion.W);
         var bit = 1 << bitIndex;
         return (RestrictVersion & bit) != 0;
+    }
+
+    public static PGF[] GetArray(Memory<byte> bin)
+    {
+        // Receivability is packaged at the end of the binary.
+        var result = new PGF[bin.Length / (Size + 1)];
+        var tail = result.Length * Size;
+        for (int i = 0; i < result.Length; i++)
+        {
+            var slice = bin.Slice(i * Size, Size);
+            var value = bin.Span[tail + i];
+            var version = (byte)(value & 0x0F);
+            var language = (byte)((value >> 4) & 0x0F);
+            result[i] = new PGF(slice) { RestrictVersion = version, RestrictLanguage = language };
+        }
+        return result;
     }
 }

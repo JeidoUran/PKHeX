@@ -17,7 +17,7 @@ public sealed class WC7(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
     public override EntityContext Context => EntityContext.Gen7;
     public override bool FatefulEncounter => true;
 
-    public int RestrictLanguage { get; set; } // None
+    public byte RestrictLanguage { get; set; } // None
     public byte RestrictVersion { get; set; } // Permit All
 
     public bool CanBeReceivedByVersion(GameVersion version)
@@ -491,7 +491,7 @@ public sealed class WC7(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
         var av = GetAbilityIndex(criteria);
         pk.RefreshAbility(av);
         SetPID(pk);
-        SetIVs(pk);
+        SetIVs(pk, criteria);
     }
 
     private int GetAbilityIndex(in EncounterCriteria criteria) => AbilityType switch
@@ -531,31 +531,12 @@ public sealed class WC7(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
         }
     }
 
-    private void SetIVs(PK7 pk)
+    private void SetIVs(PK7 pk, in EncounterCriteria criteria)
     {
         Span<int> finalIVs = stackalloc int[6];
         GetIVs(finalIVs);
-        var ivflag = finalIVs.IndexOfAny(0xFC, 0xFD, 0xFE);
         var rng = Util.Rand;
-        if (ivflag == -1) // Random IVs
-        {
-            for (int i = 0; i < finalIVs.Length; i++)
-            {
-                if (finalIVs[i] > 31)
-                    finalIVs[i] = rng.Next(32);
-            }
-        }
-        else // 1/2/3 perfect IVs
-        {
-            int IVCount = finalIVs[ivflag] - 0xFB;
-            do { finalIVs[rng.Next(6)] = 31; }
-            while (finalIVs.Count(31) < IVCount);
-            for (int i = 0; i < finalIVs.Length; i++)
-            {
-                if (finalIVs[i] != 31)
-                    finalIVs[i] = rng.Next(32);
-            }
-        }
+        ApplyTemplateIVs(finalIVs, criteria, rng, _ => rng.Next(32));
         pk.SetIVs(finalIVs);
     }
 
@@ -581,7 +562,17 @@ public sealed class WC7(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
         }
 
         if (Form != evo.Form && !FormInfo.IsFormChangeable(Species, Form, pk.Form, Context, pk.Context))
-            return false;
+        {
+            // Small bypass for Greninja-Ash when mega evolved (normal and Ash map to the same Mega-3, managed by game)
+            if (this is { Species: (ushort)Core.Species.Greninja, Form: 1 } && pk is { Context: EntityContext.Gen9a, Form: 3 })
+            {
+                // Allow
+            }
+            else
+            {
+                return false;
+            }
+        }
 
         if (IsEgg)
         {
@@ -601,7 +592,7 @@ public sealed class WC7(Memory<byte> raw) : DataMysteryGift(raw), IRibbonSetEven
         else
         {
             if (!Shiny.IsValid(pk)) return false;
-            if (!IsMatchEggLocation(pk)) return false;
+            if (!IsMatchEggLocationInternal(pk)) return false;
             if (Location != pk.MetLocation) return false;
         }
 

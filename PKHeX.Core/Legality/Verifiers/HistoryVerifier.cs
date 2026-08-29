@@ -136,7 +136,7 @@ public sealed class HistoryVerifier : Verifier
     /// <summary> <see cref="Bulk.HandlerChecker.CheckHandlingTrainerEquals"/> </summary>
     private void CheckHandlingTrainerEquals(LegalityAnalysis data, PKM pk, ITrainerInfo tr)
     {
-        Span<char> ht = stackalloc char[pk.TrashCharCountTrainer];
+        Span<char> ht = stackalloc char[pk.TrashCharCountHandler];
         var len = pk.LoadString(pk.HandlingTrainerTrash, ht);
         ht = ht[..len];
 
@@ -261,11 +261,14 @@ public sealed class HistoryVerifier : Verifier
 
     private void VerifyGeoLocationData(LegalityAnalysis data, IGeoTrack t, PKM pk)
     {
-        var valid = t.GetValidity();
+        var (valid, index) = t.GetValidity();
         if (valid == GeoValid.CountryAfterPreviousEmpty)
-            data.AddLine(GetInvalid(GeoBadOrder));
+            data.AddLine(GetInvalid(GeoBadOrder_0, index));
         else if (valid == GeoValid.RegionWithoutCountry)
-            data.AddLine(GetInvalid(GeoNoRegion));
+            data.AddLine(GetInvalid(GeoNoCountry_0, index));
+        else if (valid == GeoValid.CountryDoesNotHaveRegion)
+            data.AddLine(GetInvalid(GeoNoRegion_0, index));
+
         if (t.Geo1_Country != 0 && pk.IsUntraded) // traded
             data.AddLine(GetInvalid(GeoNoCountryHT));
     }
@@ -299,8 +302,10 @@ public sealed class HistoryVerifier : Verifier
         WB8 wb8 when wb8.GetHasOT(pk.Language) => false,
         WA8 wa8 when wa8.GetHasOT(pk.Language) => false,
         WC9 wc9 when wc9.GetHasOT(pk.Language) => false,
+        WA9 wa9 when wa9.GetHasOT(pk.Language) => false,
         WC8 {IsHOMEGift: true} => false,
         WC9 {IsHOMEGift: true} => false,
+        WA9 {IsHOMEGift: true} => false,
         _ => true,
     };
 

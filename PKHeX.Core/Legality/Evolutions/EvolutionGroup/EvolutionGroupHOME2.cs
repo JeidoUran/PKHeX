@@ -15,15 +15,14 @@ public sealed class EvolutionGroupHOME2 : IEvolutionGroup
 
     public IEvolutionGroup? GetPrevious(PKM pk, EvolutionOrigin enc)
     {
-        return null; // TODO HOME ZA2: Re-enable when we have more info.
-        // if (enc.Generation > 9 || enc.Context is EntityContext.Gen9a)
-        //     return null;
-        // return EvolutionGroupHOME.Instance;
+        if (enc is { Generation: > 9} or { Context: EntityContext.Gen9a })
+            return null;
+        return EvolutionGroupHOME.Instance;
     }
 
     public void DiscardForOrigin(Span<EvoCriteria> result, PKM pk, EvolutionOrigin enc)
     {
-        if (pk.ZA) // TODO HOME ZA2: did they force realign everything and fix their bug?
+        if (pk.ZA)
         {
             var table = PersonalTable.ZA;
             if (enc.Options.HasFlag(OriginOptions.SkipChecks))
@@ -33,8 +32,10 @@ public sealed class EvolutionGroupHOME2 : IEvolutionGroup
             }
 
             // Check if ability was possibly realigned by form change; if not, discard anything that doesn't have the ability.
+            // If touched by HOME, HOME realigns tracker, so we can't discard in that case.
+
             var index = pk.AbilityNumber >> 1;
-            if (index is 0 or 1)
+            if (index is 0 or 1 && pk is not IHomeTrack { HasTracker: true })
             {
                 var didRealignAbility = false;
                 var ability = pk.Ability;
@@ -117,7 +118,7 @@ public sealed class EvolutionGroupHOME2 : IEvolutionGroup
         return present;
     }
 
-    private int EvolveMulti(Span<EvoCriteria> result, PKM pk, in EvolutionOrigin enc, EvolutionHistory history)
+    private static int EvolveMulti(Span<EvoCriteria> result, PKM pk, in EvolutionOrigin enc, EvolutionHistory history)
     {
         int present = 1;
         for (int i = result.Length - 1; i >= 1; i--)
@@ -180,7 +181,7 @@ public sealed class EvolutionGroupHOME2 : IEvolutionGroup
             evo = evo with { Form = FormInfo.GetOutOfBattleForm(species, form, Latest.Generation) };
     }
 
-    private int EvolveSingle(Span<EvoCriteria> result, PKM pk, in EvolutionOrigin enc, EvolutionHistory history)
+    private static int EvolveSingle(Span<EvoCriteria> result, PKM pk, in EvolutionOrigin enc, EvolutionHistory history)
     {
         int present = 1;
         var env = GetSingleEnv(pk);

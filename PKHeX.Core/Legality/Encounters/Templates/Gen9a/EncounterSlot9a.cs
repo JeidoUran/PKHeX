@@ -19,7 +19,7 @@ public sealed record EncounterSlot9a(EncounterArea9a Parent, ushort Species, byt
     public AbilityPermission Ability => AbilityPermission.Any12;
     public Ball FixedBall => Ball.None;
     public bool IsShiny => false;
-    public ushort EggLocation => 0;
+    ushort ILocation.EggLocation => 0;
     public bool IsRandomUnspecificForm => Form >= EncounterUtil.FormDynamic;
 
     public string Name => "Wild Encounter";
@@ -131,7 +131,8 @@ public sealed record EncounterSlot9a(EncounterArea9a Parent, ushort Species, byt
 
     private bool IsFormArgMismatch(PKM pk) => pk.Species switch
     {
-        (int)Core.Species.Overqwil when Species is not (int)Core.Species.Overqwil && pk is IFormArgument { FormArgument: 0 } and IHomeTrack { HasTracker: false } => true,
+        // Don't check for HOME tracker cross-evolution unlocks. This stays simple so that the iterator tries to find a no-evolve template match if possible.
+        (int)Core.Species.Overqwil when Species is not (int)Core.Species.Overqwil && pk is IFormArgument { FormArgument: 0 } => true,
         _ => false,
     };
 

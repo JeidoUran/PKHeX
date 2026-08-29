@@ -11,7 +11,7 @@ namespace PKHeX.WinForms.Controls;
 public partial class EntitySearchControl : UserControl
 {
     private EntityContext SaveContext { get; set; } = Latest.Context;
-    
+
     public EntitySearchControl() => InitializeComponent();
 
     /// <summary>
@@ -48,7 +48,7 @@ public partial class EntitySearchControl : UserControl
         CB_HeldItem.DataSource = items;
 
         var natures = new List<ComboItem>(source.NatureDataSource);
-        natures.Insert(0, comboAny);
+        natures.Insert(0, comboAny with { Value = (int)Nature.Random });
         CB_Nature.DataSource = natures;
 
         var abilities = new List<ComboItem>(source.AbilityDataSource);
@@ -96,6 +96,7 @@ public partial class EntitySearchControl : UserControl
     public void InitializeSelections(SaveFile sav, bool showContext = true)
     {
         SaveContext = sav.Context;
+        TB_Nickname.DisplayContext = SaveContext;
         if (sav.Generation >= 8)
         {
             CB_FormatComparator.SelectedIndex = 1; // ==
@@ -107,7 +108,7 @@ public partial class EntitySearchControl : UserControl
         }
         L_Format.Visible = CB_FormatComparator.Visible = CB_Format.Visible = showContext;
     }
-    
+
     /// <summary>
     /// Sets the localized text for the format "Any" option.
     /// </summary>
@@ -160,7 +161,10 @@ public partial class EntitySearchControl : UserControl
     public void ResetComboBoxSelections()
     {
         foreach (var cb in TLP_Filters.Controls.OfType<ComboBox>())
-            cb.SelectedIndex = cb.SelectionLength = 0;
+        {
+            cb.SelectedIndex = 0;
+            cb.Select(0, 0);
+        }
     }
 
     /// <summary>

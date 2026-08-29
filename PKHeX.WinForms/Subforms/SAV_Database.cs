@@ -20,13 +20,15 @@ namespace PKHeX.WinForms;
 
 public partial class SAV_Database : Form
 {
+    private const int GridHeightMin = 5;
+    private const int GridHeightMax = 20;
     private readonly SaveFile SAV;
     private readonly SAVEditor BoxView;
     private readonly PKMEditor PKME_Tabs;
     private readonly EntityInstructionBuilder UC_Builder;
 
     private const int GridWidth = 6;
-    private const int GridHeight = 11;
+    private readonly int GridHeight;
 
     private readonly PictureBox[] PKXBOXES;
     private readonly string DatabasePath = Main.DatabasePath;
@@ -35,10 +37,9 @@ public partial class SAV_Database : Form
     private int slotSelected = -1; // = null;
     private Image? slotColor;
     private const int RES_MIN = GridWidth * 1;
-    private const int RES_MAX = GridWidth * GridHeight;
+    private int RES_MAX => PKXBOXES.Length;
     private readonly string Counter;
     private readonly string Viewed;
-    private const int MAXFORMAT = Latest.Generation;
     private readonly SummaryPreviewer ShowSet = new();
     private readonly CancellationTokenSource cts = new();
 
@@ -48,7 +49,9 @@ public partial class SAV_Database : Form
         FormClosing += (_, _) => cts.Cancel();
 
         var settings = new TabPage { Text = "Settings", Name = "Tab_Settings" };
-        settings.Controls.Add(new PropertyGrid { Dock = DockStyle.Fill, SelectedObject = Main.Settings.EntityDb });
+        var settingsGrid = new PropertyGrid { Dock = DockStyle.Fill };
+        PropertyGridLocalization.Apply(settingsGrid, Main.Settings.EntityDb, Main.CurrentLanguage);
+        settings.Controls.Add(settingsGrid);
         TC_SearchSettings.Controls.Add(settings);
 
         WinFormsUtil.TranslateInterface(this, Main.CurrentLanguage);
@@ -67,23 +70,16 @@ public partial class SAV_Database : Form
         SAV = saveditor.SAV;
         BoxView = saveditor;
         PKME_Tabs = f1;
+        GridHeight = GetGridHeight(Main.Settings.EntityDb.ResultsGridRowCount, DatabasePokeGrid);
 
         // Preset Filters to only show PKM available for loaded save
         UC_EntitySearch.InitializeSelections(SAV);
 
         var grid = DatabasePokeGrid;
-        var smallWidth = grid.Width;
-        var smallHeight = grid.Height;
+        var originalGridSize = grid.Size;
         grid.InitializeGrid(GridWidth, GridHeight, SpriteUtil.Spriter);
         grid.SetBackground(Resources.box_wp_clean);
-        var newWidth = grid.Width;
-        var newHeight = grid.Height;
-        var wdelta = newWidth - smallWidth;
-        if (wdelta != 0)
-            Width += wdelta;
-        var hdelta = newHeight - smallHeight;
-        if (hdelta != 0)
-            Height += hdelta;
+        ResizeForGrid(grid, originalGridSize);
         PKXBOXES = [.. grid.Entries];
 
         // Enable Scrolling when hovered over
@@ -120,8 +116,8 @@ public partial class SAV_Database : Form
 
                 var x = Main.Settings;
                 var programLanguage = Language.GetLanguageValue(x.Startup.Language);
-                var settings = x.BattleTemplate.Hover.GetSettings(programLanguage, pk.Entity.Context);
-                slot.AccessibleDescription = ShowdownParsing.GetLocalizedPreviewText(pk.Entity, settings);
+                var s = x.BattleTemplate.Hover.GetSettings(programLanguage, pk.Entity.Context);
+                slot.AccessibleDescription = ShowdownParsing.GetLocalizedPreviewText(pk.Entity, s);
             };
         }
 
@@ -168,6 +164,27 @@ public partial class SAV_Database : Form
         UC_EntitySearch.ResetComboBoxSelections();
     }
 
+    private int GetGridHeight(int requestedRows, PokeGrid grid)
+    {
+        requestedRows = Math.Clamp(requestedRows, GridHeightMin, GridHeightMax);
+        var workingAreaHeight = Screen.FromControl(this).WorkingArea.Height;
+        var otherHeight = Height - grid.Height;
+        var maxGridHeight = Math.Max(grid.Height, workingAreaHeight - otherHeight);
+        var maxRows = PokeGrid.GetMaxRowCount(maxGridHeight, SpriteUtil.Spriter.Height);
+        return Math.Max(1, Math.Min(requestedRows, maxRows));
+    }
+
+    private void ResizeForGrid(PokeGrid grid, Size originalGridSize)
+    {
+        var widthDelta = grid.Width - originalGridSize.Width;
+        if (widthDelta != 0)
+            Width += widthDelta;
+
+        var heightDelta = grid.Height - originalGridSize.Height;
+        if (heightDelta != 0)
+            Height += heightDelta;
+    }
+
     private void ClickView(object sender, EventArgs e)
     {
         if (!WinFormsUtil.TryGetUnderlying<PictureBox>(sender, out var pb))
@@ -175,7 +192,7 @@ public partial class SAV_Database : Form
         int index = PKXBOXES.IndexOf(pb);
         if (!GetShiftedIndex(ref index))
         {
-            System.Media.SystemSounds.Exclamation.Play();
+            WinFormsUtil.Exclamation();
             return;
         }
 
@@ -207,7 +224,7 @@ public partial class SAV_Database : Form
         int index = PKXBOXES.IndexOf(pb);
         if (!GetShiftedIndex(ref index))
         {
-            System.Media.SystemSounds.Exclamation.Play();
+            WinFormsUtil.Exclamation();
             return;
         }
 
@@ -224,7 +241,7 @@ public partial class SAV_Database : Form
         {
             // Data from Box: Delete from save file
             var exist = b.Read(SAV);
-            if (!exist.DecryptedBoxData.SequenceEqual(pk.DecryptedBoxData)) // data modified already?
+            if (!exist.EqualsStored(pk)) // data modified already?
             {
                 WinFormsUtil.Error(MsgDBDeleteFailModified, MsgDBDeleteFailWarning);
                 return;
@@ -243,7 +260,7 @@ public partial class SAV_Database : Form
         L_Count.Text = string.Format(Counter, Results.Count);
         slotSelected = -1;
         FillPKXBoxes(SCR_Box.Value);
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private void ClickSet(object sender, EventArgs e)
@@ -263,7 +280,9 @@ public partial class SAV_Database : Form
             return;
         }
 
-        File.WriteAllBytes(path, pk.DecryptedBoxData);
+        Span<byte> data = stackalloc byte[pk.SIZE_PARTY];
+        pk.WriteDecryptedDataParty(data);
+        File.WriteAllBytes(path, data);
 
         var info = new SlotInfoFileSingle(path);
         var entry = new SlotCache(info, pk);
@@ -294,7 +313,7 @@ public partial class SAV_Database : Form
         RTB_Instructions.Clear();
 
         if (sender != this)
-            System.Media.SystemSounds.Asterisk.Play();
+            WinFormsUtil.Asterisk();
     }
 
     private void GenerateDBReport(object sender, EventArgs e)
@@ -446,8 +465,14 @@ public partial class SAV_Database : Form
         string path = fbd.SelectedPath;
         Directory.CreateDirectory(path);
 
+        Span<byte> data = stackalloc byte[SAV.SIZE_PARTY];
         foreach (var pk in Results.Select(z => z.Entity))
-            File.WriteAllBytes(Path.Combine(path, PathUtil.CleanFileName(pk.FileName)), pk.DecryptedPartyData);
+        {
+            var fileName = Path.Combine(path, PathUtil.CleanFileName(pk.FileName));
+            pk.ForcePartyData();
+            pk.WriteDecryptedDataParty(data);
+            File.WriteAllBytes(fileName, data);
+        }
     }
 
     private void Menu_Import_Click(object sender, EventArgs e)
@@ -526,7 +551,7 @@ public partial class SAV_Database : Form
                     WinFormsUtil.Alert(MsgDBSearchNone);
             }
             SetResults(results); // updates Count Label as well.
-            System.Media.SystemSounds.Asterisk.Play();
+            WinFormsUtil.Asterisk();
             B_Search.Enabled = true;
         }
         catch

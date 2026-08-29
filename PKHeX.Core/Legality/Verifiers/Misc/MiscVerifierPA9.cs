@@ -17,14 +17,17 @@ internal sealed class MiscVerifierPA9 : Verifier
 
     internal void Verify(LegalityAnalysis data, PA9 pa9)
     {
-        MiscVerifierHelpers.VerifyStatNature(data, pa9);
+        MiscVerifierHelpers.VerifyStatAlignment(data, pa9);
 
         LegendsZA.Verify(data);
         if (!pa9.IsBattleVersionValid(data.Info.EvoChainsAllGens))
             data.AddLine(GetInvalid(StatBattleVersionInvalid));
         if (!MiscVerifierHelpers.IsObedienceLevelValid(pa9, pa9.ObedienceLevel, pa9.MetLevel))
             data.AddLine(GetInvalid(TransferObedienceLevel));
+
         if (pa9.IsAlpha != data.EncounterMatch is IAlphaReadOnly { IsAlpha: true })
             data.AddLine(GetInvalid(StatAlphaInvalid));
+        else if (pa9.IsAlpha && pa9 is IHomeTrack { HasTracker: true } && (pa9.HeightScalar != 255 || pa9.WeightScalar != 255))
+            data.AddLine(GetInvalid(StatAlphaInvalid)); // HOME inbound forces 255-255-255 if Alpha.
     }
 }

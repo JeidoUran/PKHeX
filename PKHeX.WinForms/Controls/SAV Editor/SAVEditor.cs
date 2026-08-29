@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Media;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using PKHeX.Core;
@@ -37,12 +36,6 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
 
     public bool HaX;
     public bool ModifyPKM { private get; set; }
-
-    public bool HideSecretDetails
-    {
-        private get;
-        set => ToggleSecrets(SAV, field = value);
-    }
 
     public ToolStripMenuItem Menu_Redo { get; set; } = null!;
     public ToolStripMenuItem Menu_Undo { get; set; } = null!;
@@ -92,6 +85,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
 
         SL_Extra.ViewIndex = -2;
         menu = new ContextMenuSAV { Manager = M };
+        components!.Add(menu);
         InitializeEvents();
     }
 
@@ -109,6 +103,8 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
             if (menu.mnuVSD.Visible)
                 return;
             Box.CurrentBox = e.Delta > 1 ? Box.Editor.MoveLeft() : Box.Editor.MoveRight();
+            if (Box.M is { } m)
+                m.MouseRestart(); // should always trigger if properly connected
         };
 
         GB_Daycare.Click += (_, _) => SwitchDaycare();
@@ -478,7 +474,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
         if (!string.IsNullOrWhiteSpace(message))
             WinFormsUtil.Alert(message + $" ({count})");
         else
-            SystemSounds.Asterisk.Play();
+            WinFormsUtil.Asterisk();
     }
 
     private void ClickBoxDouble(object sender, MouseEventArgs e)
@@ -511,8 +507,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
             z.BringToFront();
             return;
         }
-        var form = new SAV_BoxViewer(this, M, Box.CurrentBox);
-        form.Owner = FindForm();
+        var form = new SAV_BoxViewer(this, M, Box.CurrentBox) { Owner = FindForm() };
         form.Show();
     }
 
@@ -579,21 +574,6 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
             if (GetCurrentDaycare() is { } s)
                 SetDaycareSeed(s, filterText);
         }
-        else if (tb == TB_GameSync && SAV is IGameSync sync)
-        {
-            var value = filterText.PadLeft(sync.GameSyncIDSize, '0');
-            sync.GameSyncID = value;
-            SAV.State.Edited = true;
-        }
-        else if (SAV is ISecureValueStorage s)
-        {
-            var value = Convert.ToUInt64(filterText, 16);
-            if (tb == TB_Secure1)
-                s.TimeStampCurrent = value;
-            else if (tb == TB_Secure2)
-                s.TimeStampPrevious = value;
-            SAV.State.Edited = true;
-        }
     }
 
     private void SetDaycareSeed(IDaycareStorage daycare, string filterText)
@@ -659,12 +639,16 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
     private void B_CellsStickers_Click(object sender, EventArgs e) => OpenDialog(new SAV_ZygardeCell((SAV7)SAV));
     private void B_LinkInfo_Click(object sender, EventArgs e) => OpenDialog(new SAV_Link6(SAV));
     private void B_OpenApricorn_Click(object sender, EventArgs e) => OpenDialog(new SAV_Apricorn((SAV4HGSS)SAV));
+    private void B_OpenPokeathlon_Click(object sender, EventArgs e) => OpenDialog(new SAV_Pokeathlon4((SAV4HGSS)SAV));
     private void B_DLC_Click(object sender, EventArgs e) => OpenDialog(new SAV_DLC5((SAV5)SAV));
     private void B_OpenTrainerInfo_Click(object sender, EventArgs e) => OpenDialog(GetTrainerEditor(SAV));
     private void B_OpenOPowers_Click(object sender, EventArgs e) => OpenDialog(new SAV_OPower((ISaveBlock6Main)SAV));
     private void B_OpenHoneyTreeEditor_Click(object sender, EventArgs e) => OpenDialog(new SAV_HoneyTree((SAV4Sinnoh)SAV));
     private void B_OpenGeonetEditor_Click(object sender, EventArgs e) => OpenDialog(new SAV_Geonet4((SAV4)SAV));
     private void B_OpenUnityTowerEditor_Click(object sender, EventArgs e) => OpenDialog(new SAV_UnityTower((SAV5)SAV));
+    private void B_OpenJoinAvenueEditor_Click(object sender, EventArgs e) => OpenDialog(new SAV_JoinAvenue((SAV5B2W2)SAV));
+    private void B_OpenMedalsEditor_Click(object sender, EventArgs e) => OpenDialog(new SAV_Medals5((SAV5B2W2)SAV));
+    private void B_OpenGlobalLink_Click(object sender, EventArgs e) => OpenDialog(new SAV_GlobalLink5((SAV5)SAV));
     private void B_OpenChatterEditor_Click(object sender, EventArgs e) => OpenDialog(new SAV_Chatter(SAV));
     private void B_OpenGear_Click(object sender, EventArgs e) => OpenDialog(new SAV_Gear((SAV4BR)SAV));
     private void B_Donuts_Click(object sender, EventArgs e) => OpenDialog(new SAV_Donut9a((SAV9ZA)SAV));
@@ -809,18 +793,22 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
         _ => GetPropertyForm(sav),
     };
 
+    internal static string SimpleEditorKey = WinFormsTranslator.GetKey(nameof(SAVEditor), "SimpleEditor");
+
     private static Form GetPropertyForm(object sav)
     {
+        var key = SimpleEditorKey;
         var form = new Form
         {
-            Text = "Simple Editor",
+            Text = WinFormsTranslator.TranslateText(key, "Simple Editor", Main.CurrentLanguage),
             StartPosition = FormStartPosition.CenterParent,
             MinimumSize = new Size(350, 380),
             MinimizeBox = false,
             MaximizeBox = false,
             Icon = Properties.Resources.Icon,
         };
-        var pg = new PropertyGrid { SelectedObject = sav, Dock = DockStyle.Fill };
+        var pg = new PropertyGrid { Dock = DockStyle.Fill };
+        PropertyGridLocalization.Apply(pg, sav, Main.CurrentLanguage);
         form.Controls.Add(pg);
         return form;
     }
@@ -988,7 +976,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
         var localization = LegalityLocalizationSet.GetLocalization(Main.CurrentLanguage);
         var msg = bulk.Report(localization);
         WinFormsUtil.SetClipboardText(msg);
-        SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     // File I/O
@@ -1306,7 +1294,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
         GB_Daycare.Visible = sav is IDaycareStorage or IDaycareMulti;
         B_ConvertKorean.Visible = sav is SAV4;
         B_OpenPokeblocks.Visible = sav is SAV6AO;
-        B_OpenSecretBase.Visible = sav is SAV6AO or IGen3Hoenn;
+        B_OpenSecretBase.Visible = sav is SAV6AO or SAV3 { LargeBlock: ISaveBlock3LargeHoenn };
         B_OpenPokepuffs.Visible = sav is ISaveBlock6Main;
         B_JPEG.Visible = B_OpenLinkInfo.Visible = B_OpenSuperTraining.Visible = B_OUTPasserby.Visible = sav is ISaveBlock6Main;
         B_OpenBoxLayout.Visible = sav is IBoxDetailName;
@@ -1329,12 +1317,14 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
         B_OpenHoneyTreeEditor.Visible = sav is SAV4Sinnoh;
         B_OpenUGSEditor.Visible = sav is SAV4Sinnoh or SAV8BS;
         B_OpenGeonetEditor.Visible = sav is SAV4;
-        B_OpenUnityTowerEditor.Visible = sav is SAV5;
+        B_OpenGlobalLink.Visible = B_OpenUnityTowerEditor.Visible = sav is SAV5;
+        B_OpenJoinAvenueEditor.Visible = B_OpenMedalsEditor.Visible = sav is SAV5B2W2;
         B_OpenChatterEditor.Visible = sav is SAV4 or SAV5;
         B_OpenBattlePass.Visible = B_OpenGear.Visible = sav is SAV4BR;
         B_OpenSealStickers.Visible = B_Poffins.Visible = sav is SAV8BS;
         B_OpenApricorn.Visible = sav is SAV4HGSS;
-        B_OpenRTCEditor.Visible = (sav.Generation == 2 && sav is not SAV2Stadium) || sav is IGen3Hoenn;
+        B_OpenPokeathlon.Visible = sav is SAV4HGSS;
+        B_OpenRTCEditor.Visible = (sav.Generation == 2 && sav is not SAV2Stadium) || sav is SAV3 { SmallBlock: ISaveBlock3SmallHoenn };
         B_MailBox.Visible = sav is SAV2 or SAV2Stadium or SAV3 or SAV4 or SAV5;
 
         B_Raids.Visible = sav is SAV8SWSH or SAV9SV;
@@ -1357,7 +1347,6 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
     private void ToggleViewMisc(SaveFile sav)
     {
         // Generational Interface
-        ToggleSecrets(sav, HideSecretDetails);
         B_VerifyCHK.Visible = SAV.State.Exportable;
         Menu_ExportBAK.Visible = SAV.State.Exportable && SAV.Metadata.FilePath is not null;
 
@@ -1374,27 +1363,6 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
         {
             L_SaveSlot.Visible = CB_SaveSlot.Visible = false;
         }
-
-        if (sav is ISecureValueStorage s)
-        {
-            TB_Secure1.Text = s.TimeStampCurrent.ToString("X16");
-            TB_Secure2.Text = s.TimeStampPrevious.ToString("X16");
-        }
-
-        if (sav is IGameSync sync)
-        {
-            var gsid = sync.GameSyncID;
-            TB_GameSync.Enabled = !string.IsNullOrEmpty(gsid);
-            TB_GameSync.MaxLength = sync.GameSyncIDSize;
-            TB_GameSync.Text = (string.IsNullOrEmpty(gsid) ? 0.ToString() : gsid).PadLeft(sync.GameSyncIDSize, '0');
-        }
-    }
-
-    private void ToggleSecrets(SaveFile sav, bool hide)
-    {
-        var shouldShow = sav.State.Exportable && !hide;
-        TB_Secure1.Visible = TB_Secure2.Visible = L_Secure1.Visible = L_Secure2.Visible = shouldShow && sav is ISecureValueStorage;
-        TB_GameSync.Visible = L_GameSync.Visible = shouldShow && sav is IGameSync;
     }
 
     // DragDrop
@@ -1541,7 +1509,8 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
             {
                 using var img = new Bitmap(Box.Width, Box.Height);
                 Box.DrawToBitmap(img, new Rectangle(0, 0, Box.Width, Box.Height));
-                using var cursor = Cursor = new Cursor(img.GetHicon());
+                using var dragCursor = new BitmapCursor(img);
+                Cursor = dragCursor.Cursor;
                 await File.WriteAllBytesAsync(newFile, bin).ConfigureAwait(true);
                 DoDragDrop(new DataObject(DataFormats.FileDrop, new[] { newFile }), DragDropEffects.Copy);
             }
@@ -1615,7 +1584,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
                 return;
             }
         }
-        if (_searchForm is null || !_searchForm.IsSameSaveFile(SAV))
+        if (_searchForm?.IsSameSaveFile(SAV) != true)
             _searchForm = CreateSearcher(SAV, EditEnv.PKMEditor);
 
         // Set the searcher Position immediately to the right of this parent form, and vertically aligned tops of forms.
@@ -1636,8 +1605,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
     private EntitySearchSetup CreateSearcher(SaveFile sav, IPKMView edit)
     {
         BoxSearchClear();
-        var result = new EntitySearchSetup();
-        result.Initialize(sav, edit);
+        var result = new EntitySearchSetup(edit, sav);
 
         result.ResetRequested += UpdateSearch;
         result.SearchRequested += UpdateSearch;

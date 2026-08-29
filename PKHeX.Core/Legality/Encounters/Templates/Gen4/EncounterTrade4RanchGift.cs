@@ -136,11 +136,33 @@ public sealed record EncounterTrade4RanchGift : IEncounterable, IEncounterMatch,
         pk.Nature = (Nature)(pid % 25);
         pk.Gender = Gender;
         pk.RefreshAbility((int)(pid % 2));
+        pk.IV32 = GetIVs(criteria);
+    }
 
+    private static uint GetIVs(EncounterCriteria criteria)
+    {
         if (criteria.IsSpecifiedIVsAll())
-            pk.IV32 = criteria.GetCombinedIVs();
-        else
-            criteria.SetRandomIVs(pk);
+        {
+            // Sanity check that they are possible.
+            var combined = criteria.GetCombinedIVs();
+            if (MRNGReversal.HasSeeds(combined))
+                return combined;
+        }
+
+        // Else, apply something random within plausible criteria.
+        uint seed = Util.Rand32();
+        var filterIVs = criteria.IsSpecifiedIVs(2);
+        while (true)
+        {
+            var iv32 = MRNG.GetSequentialIVs(seed);
+            seed = MRNG.Next(seed);
+
+            if (criteria.IsSpecifiedHiddenPower() && !criteria.IsSatisfiedHiddenPower(iv32))
+                continue;
+            if (filterIVs && !criteria.IsSatisfiedIVs(iv32))
+                continue;
+            return iv32;
+        }
     }
 
     #endregion
@@ -163,7 +185,7 @@ public sealed record EncounterTrade4RanchGift : IEncounterable, IEncounterMatch,
             return false;
         if (pk.OriginalTrainerGender != OTGender)
             return false;
-        if (!IsMatchEggLocation(pk))
+        if (!this.IsMatchEggLocation(pk))
             return false;
         if (pk.IsEgg)
             return false;
@@ -194,14 +216,6 @@ public sealed record EncounterTrade4RanchGift : IEncounterable, IEncounterMatch,
         if (FatefulEncounter)
             return !pk.IsShiny;
         return PID == pk.EncryptionConstant;
-    }
-
-    private bool IsMatchEggLocation(PKM pk)
-    {
-        var expect = EggLocation;
-        if (pk is PB8)
-            expect = Locations.Default8bNone;
-        return pk.EggLocation == expect;
     }
 
     public EncounterMatchRating GetMatchRating(PKM pk) => EncounterMatchRating.Match;

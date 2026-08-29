@@ -41,7 +41,7 @@ public sealed class PCD(Memory<byte> raw)
     {
         // Ensure PGT content is encrypted
         var clone = new PCD(Data.ToArray());
-        clone.Gift.VerifyPKEncryption();
+        clone.Gift.VerifyGiftEncryption();
         return clone.Data;
     }
 
@@ -132,7 +132,7 @@ public sealed class PCD(Memory<byte> raw)
             {
                 // met location: deferred to general transfer check
                 if (wc.CurrentLevel > pk.MetLevel) return false;
-                if (!IsMatchEggLocation(pk))
+                if (!IsMatchEggLocationInternal(pk))
                     return false;
             }
             else

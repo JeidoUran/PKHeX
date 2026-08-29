@@ -86,7 +86,9 @@ public static class BoxExport
 
         int count = GetSlotCountForBox(boxSlotCount, box, total);
         int ctr = 0;
-        // Export each slot in the box.
+        // Export each slot in the box with party stats, to be nice to any external analysis.
+        bool isPartyFormat = sav.SIZE_BOXSLOT == sav.SIZE_PARTY;
+        Span<byte> data = stackalloc byte[sav.SIZE_PARTY];
         for (int slot = 0; slot < count; slot++)
         {
             var pk = sav.GetBoxSlotAtIndex(box, slot);
@@ -98,7 +100,13 @@ public static class BoxExport
 
             var fileName = GetFileName(pk, settings.FileIndexPrefix, namer, box, slot, boxSlotCount);
             var fn = Path.Combine(destPath, fileName);
-            File.WriteAllBytes(fn, pk.DecryptedPartyData);
+
+            // Assume that all PKM read for the loop all are the same shape; the if-else will always travel one path.
+            // We don't have to worry about lingering party data from a previous loop iteration.
+            if (!isPartyFormat)
+                pk.ForcePartyData(); // Rather than export all-zero party stats, calculate what they would be.
+            pk.WriteDecryptedDataParty(data);
+            File.WriteAllBytes(fn, data);
             ctr++;
         }
         return ctr;

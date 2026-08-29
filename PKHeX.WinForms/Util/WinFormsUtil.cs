@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Media;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -17,6 +18,19 @@ namespace PKHeX.WinForms;
 
 public static class WinFormsUtil
 {
+    internal static bool Quiet { get; set; }
+
+    private static void Sound(SystemSound sound)
+    {
+        if (!Quiet)
+            sound.Play();
+    }
+
+    internal static void Asterisk() => Sound(SystemSounds.Asterisk);
+    internal static void Hand() => Sound(SystemSounds.Hand);
+    internal static void Exclamation() => Sound(SystemSounds.Exclamation);
+    internal static void Question() => Sound(SystemSounds.Question);
+
     internal static void TranslateInterface(Control form, string lang) => form.TranslateInterface(lang);
 
     extension(Control child)
@@ -117,7 +131,7 @@ public static class WinFormsUtil
     /// <returns>The <see cref="DialogResult"/> associated with the dialog.</returns>
     internal static DialogResult Error(string friendlyMessage, Exception exception)
     {
-        System.Media.SystemSounds.Exclamation.Play();
+        Exclamation();
         return ErrorWindow.ShowErrorDialog(friendlyMessage, exception, true);
     }
 
@@ -128,24 +142,21 @@ public static class WinFormsUtil
     /// <returns>The <see cref="DialogResult"/> associated with the dialog.</returns>
     internal static DialogResult Error(params ReadOnlySpan<string?> lines)
     {
-        System.Media.SystemSounds.Hand.Play();
+        Hand();
         string msg = string.Join(Environment.NewLine + Environment.NewLine, lines);
         return MessageBox.Show(msg, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
 
-    internal static DialogResult Alert(params ReadOnlySpan<string?> lines) => Alert(true, lines);
-
-    internal static DialogResult Alert(bool sound, params ReadOnlySpan<string?> lines)
+    internal static DialogResult Alert(params ReadOnlySpan<string?> lines)
     {
-        if (sound)
-            System.Media.SystemSounds.Asterisk.Play();
+        Asterisk();
         string msg = string.Join(Environment.NewLine + Environment.NewLine, lines);
-        return MessageBox.Show(msg, "Alert", MessageBoxButtons.OK, sound ? MessageBoxIcon.Information : MessageBoxIcon.None);
+        return MessageBox.Show(msg, "Alert", MessageBoxButtons.OK, Quiet ? MessageBoxIcon.None : MessageBoxIcon.Information);
     }
 
     internal static DialogResult Prompt(MessageBoxButtons btn, params ReadOnlySpan<string?> lines)
     {
-        System.Media.SystemSounds.Asterisk.Play();
+        Asterisk();
         string msg = string.Join(Environment.NewLine + Environment.NewLine, lines);
         return MessageBox.Show(msg, "Prompt", btn, MessageBoxIcon.Question);
     }
@@ -205,6 +216,8 @@ public static class WinFormsUtil
     /// <param name="control">Control to initialize binding</param>
     public static void InitializeBinding(this ListControl control)
     {
+        if (control is ComboBox { AutoCompleteMode: AutoCompleteMode.Suggest or AutoCompleteMode.SuggestAppend } cb)
+            cb.KeyDown += RemoveDropCB;
         control.DisplayMember = nameof(ComboItem.Text);
         control.ValueMember = nameof(ComboItem.Value);
     }
@@ -222,7 +235,7 @@ public static class WinFormsUtil
         public void SetValueClamped(uint value) => nud.Value = Math.Clamp(value, nud.Minimum, nud.Maximum);
     }
 
-    public static void RemoveDropCB(object? sender, KeyEventArgs e) => (sender as ComboBox)?.DroppedDown = false;
+    private static void RemoveDropCB(object? sender, KeyEventArgs e) => (sender as ComboBox)?.DroppedDown = false;
     public static void MouseWheelIncrement1(object? sender, MouseEventArgs e) => Adjust(sender, e, 1);
     public static void MouseWheelIncrement4(object? sender, MouseEventArgs e) => Adjust(sender, e, 4);
 
@@ -243,7 +256,6 @@ public static class WinFormsUtil
     /// Iterates the Control's child controls recursively to obtain all controls of the specified type.
     /// </summary>
     /// <typeparam name="T">Type of control</typeparam>
-    /// <param name="control"></param>
     /// <returns>All children and sub-children contained by <see cref="control"/>.</returns>
     public static IEnumerable<Control> GetAllControlsOfType<T>(Control control) where T : Control
     {
@@ -326,7 +338,7 @@ public static class WinFormsUtil
         {
             try
             {
-                var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                 var sav = SaveFinder.FindMostRecentSaveFile(cts.Token);
                 return sav?.Metadata.FilePath;
             }
@@ -366,7 +378,11 @@ public static class WinFormsUtil
     {
         SaveBackup(path);
         var ext = Path.GetExtension(path);
-        var data = ext == $".{pkx}" ? pk.DecryptedPartyData : pk.EncryptedPartyData;
+        Span<byte> data = stackalloc byte[pk.SIZE_PARTY];
+        if (ext == $".{pkx}")
+            pk.WriteDecryptedDataParty(data);
+        else
+            pk.WriteEncryptedDataParty(data);
         File.WriteAllBytes(path, data);
     }
 

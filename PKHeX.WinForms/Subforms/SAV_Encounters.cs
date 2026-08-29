@@ -18,6 +18,8 @@ namespace PKHeX.WinForms;
 
 public partial class SAV_Encounters : Form
 {
+    private const int GridHeightMin = 5;
+    private const int GridHeightMax = 20;
     private readonly PKMEditor PKME_Tabs;
     private SaveFile SAV => PKME_Tabs.RequestSaveFile;
     private readonly SummaryPreviewer ShowSet = new();
@@ -26,7 +28,7 @@ public partial class SAV_Encounters : Form
     private readonly EntityInstructionBuilder UC_Builder;
 
     private const int GridWidth = 6;
-    private const int GridHeight = 11;
+    private readonly int GridHeight;
 
     // Criteria backing value (edited via PropertyGrid)
     private EncounterCriteria _criteriaValue = EncounterCriteria.Unrestricted;
@@ -36,7 +38,9 @@ public partial class SAV_Encounters : Form
         InitializeComponent();
 
         var settings = new TabPage { Text = "Settings", Name = "Tab_Settings" };
-        settings.Controls.Add(new PropertyGrid { Dock = DockStyle.Fill, SelectedObject = Main.Settings.EncounterDb });
+        var settingsGrid = new PropertyGrid { Dock = DockStyle.Fill };
+        PropertyGridLocalization.Apply(settingsGrid, Main.Settings.EncounterDb, Main.CurrentLanguage);
+        settings.Controls.Add(settingsGrid);
         TC_SearchOptions.Controls.Add(settings);
 
         WinFormsUtil.TranslateInterface(this, Main.CurrentLanguage);
@@ -52,20 +56,13 @@ public partial class SAV_Encounters : Form
 
         PKME_Tabs = f1;
         Trainers = db;
+        GridHeight = GetGridHeight(Main.Settings.EncounterDb.ResultsGridRowCount, EncounterPokeGrid);
 
         var grid = EncounterPokeGrid;
-        var smallWidth = grid.Width;
-        var smallHeight = grid.Height;
+        var originalGridSize = grid.Size;
         grid.InitializeGrid(GridWidth, GridHeight, SpriteUtil.Spriter);
         grid.SetBackground(Resources.box_wp_clean);
-        var newWidth = grid.Width;
-        var newHeight = grid.Height;
-        var wdelta = newWidth - smallWidth;
-        if (wdelta != 0)
-            Width += wdelta;
-        var hdelta = newHeight - smallHeight;
-        if (hdelta != 0)
-            Height += hdelta;
+        ResizeForGrid(grid, originalGridSize);
 
         PKXBOXES = [..grid.Entries];
 
@@ -109,7 +106,7 @@ public partial class SAV_Encounters : Form
         L_Count.Text = "Ready...";
 
         CenterToParent();
-        CheckIsSearchDisallowed();
+        CheckIsSearchAllowed();
 
         if (Application.IsDarkModeEnabled)
         {
@@ -121,7 +118,7 @@ public partial class SAV_Encounters : Form
     private void UpdateCriteriaPropertyGrid(EncounterCriteria value)
     {
         _criteriaValue = value;
-        PG_Criteria.SelectedObject = _criteriaValue; // box the struct for PropertyGrid
+        PropertyGridLocalization.Apply(PG_Criteria, _criteriaValue, Main.CurrentLanguage); // box the struct for PropertyGrid
     }
 
     private void PG_Criteria_PropertyValueChanged(object s, PropertyValueChangedEventArgs e)
@@ -133,13 +130,13 @@ public partial class SAV_Encounters : Form
     private void CriteriaReset_Click(object? sender, EventArgs e)
     {
         UpdateCriteriaPropertyGrid(EncounterCriteria.Unrestricted);
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private void CriteriaFromTabs_Click(object? sender, EventArgs e)
     {
         UpdateCriteriaPropertyGrid(BuildCriteriaFromTabs());
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private EncounterCriteria BuildCriteriaFromTabs()
@@ -156,7 +153,7 @@ public partial class SAV_Encounters : Form
     private void GetTypeFilters()
     {
         var types = Enum.GetValues<EncounterTypeGroup>();
-        var checks = types.Select(z => new CheckBox
+        var checks = types.Where(z => z != 0).Select(z => new CheckBox
         {
             Name = z.ToString(),
             Text = z.ToString(),
@@ -177,7 +174,7 @@ public partial class SAV_Encounters : Form
                         c.Checked = c == chk;
                 }
             };
-            chk.CheckStateChanged += (_, _) => CheckIsSearchDisallowed();
+            chk.CheckStateChanged += (_, _) => CheckIsSearchAllowed();
         }
     }
 
@@ -192,8 +189,29 @@ public partial class SAV_Encounters : Form
     private int slotSelected = -1; // = null;
     private Image? slotColor;
     private const int RES_MIN = GridWidth * 1;
-    private const int RES_MAX = GridWidth * GridHeight;
+    private int RES_MAX => PKXBOXES.Length;
     private readonly string Counter;
+
+    private int GetGridHeight(int requestedRows, PokeGrid grid)
+    {
+        requestedRows = Math.Clamp(requestedRows, GridHeightMin, GridHeightMax);
+        var workingAreaHeight = Screen.FromControl(this).WorkingArea.Height;
+        var otherHeight = Height - grid.Height;
+        var maxGridHeight = Math.Max(grid.Height, workingAreaHeight - otherHeight);
+        var maxRows = PokeGrid.GetMaxRowCount(maxGridHeight, SpriteUtil.Spriter.Height);
+        return Math.Max(1, Math.Min(requestedRows, maxRows));
+    }
+
+    private void ResizeForGrid(PokeGrid grid, Size originalGridSize)
+    {
+        var widthDelta = grid.Width - originalGridSize.Width;
+        if (widthDelta != 0)
+            Width += widthDelta;
+
+        var heightDelta = grid.Height - originalGridSize.Height;
+        if (heightDelta != 0)
+            Height += heightDelta;
+    }
 
     private bool GetShiftedIndex(ref int index)
     {
@@ -211,13 +229,13 @@ public partial class SAV_Encounters : Form
         int index = PKXBOXES.IndexOf(pb);
         if (index >= RES_MAX)
         {
-            System.Media.SystemSounds.Exclamation.Play();
+            WinFormsUtil.Exclamation();
             return;
         }
         index += SCR_Box.Value * RES_MIN;
         if (index >= Results.Count)
         {
-            System.Media.SystemSounds.Exclamation.Play();
+            WinFormsUtil.Exclamation();
             return;
         }
 
@@ -256,8 +274,12 @@ public partial class SAV_Encounters : Form
         }
 
         var criteria = _criteriaValue;
+        // Sanity check gender.
         if (!isInChain || EntityGender.IsSingleGender(enc.Species))
             criteria = criteria with { Gender = Gender.Random }; // Genderless tabs and a gendered enc -> let's play safe.
+        // Sanity check ability.
+        if (!criteria.Mutations.CanGetAbility(enc.Ability, criteria.Ability))
+            criteria = criteria with { Ability = AbilityPermission.Any12H }; // ignore the Ability requested by user, it's impossible.
         return criteria;
     }
 
@@ -304,14 +326,17 @@ public partial class SAV_Encounters : Form
         foreach (var chk in TypeFilters.Controls.OfType<CheckBox>())
             chk.Checked = true;
 
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     protected override void OnShown(EventArgs e)
     {
         base.OnShown(e);
         foreach (var cb in TLP_Filters.Controls.OfType<ComboBox>())
-            cb.SelectedIndex = cb.SelectionLength = 0;
+        {
+            cb.SelectedIndex = 0;
+            cb.Select(0, 0);
+        }
     }
 
     // View Updates
@@ -320,7 +345,7 @@ public partial class SAV_Encounters : Form
         var settings = GetSearchSettings();
 
         // If nothing is specified, instead of just returning all possible encounters, just return nothing.
-        if (DisallowSearch(settings))
+        if (!IsSearchAllowed(settings))
             return [];
         var pk = SAV.BlankPKM;
 
@@ -358,11 +383,13 @@ public partial class SAV_Encounters : Form
         return results;
     }
 
-    private bool DisallowSearch(SearchSettings settings)
+    private bool IsSearchAllowed(SearchSettings settings)
     {
-        if (TypeFilters.Controls.OfType<CheckBox>().All(z => !z.Checked))
+        if (!TypeFilters.Controls.OfType<CheckBox>().Any(z => z.Checked))
             return false; // no types selected
-        return settings is { Species: 0, Moves.Count: 0 } && Main.Settings.EncounterDb.ReturnNoneIfEmptySearch;
+        if (settings is { Species: 0, Moves.Count: 0 } && Main.Settings.EncounterDb.ReturnNoneIfEmptySearch)
+            return false;
+        return true;
     }
 
     private static IEnumerable<ushort> GetFullRange(int max)
@@ -482,7 +509,7 @@ public partial class SAV_Encounters : Form
                 WinFormsUtil.Alert(MsgDBSearchNone);
 
             SetResults(results); // updates Count Label as well.
-            System.Media.SystemSounds.Asterisk.Play();
+            WinFormsUtil.Asterisk();
             B_Search.Enabled = true;
             EncounterMovesetGenerator.ResetFilters();
         }
@@ -587,11 +614,11 @@ public partial class SAV_Encounters : Form
         tb.AppendText(s);
     }
 
-    private void CB_Species_SelectedIndexChanged(object sender, EventArgs e) => CheckIsSearchDisallowed();
+    private void CB_Species_SelectedIndexChanged(object sender, EventArgs e) => CheckIsSearchAllowed();
 
-    private void CheckIsSearchDisallowed()
+    private void CheckIsSearchAllowed()
     {
         var settings = GetSearchSettings();
-        B_Search.Enabled = !DisallowSearch(settings);
+        B_Search.Enabled = IsSearchAllowed(settings);
     }
 }

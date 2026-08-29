@@ -62,10 +62,10 @@ public static class Encounter9RNG
     {
         var rand = new Xoroshiro128Plus(seed);
         pk.EncryptionConstant = (uint)rand.NextInt(uint.MaxValue);
-        pk.PID = GetAdaptedPID(ref rand, pk, enc);
-
-        if (enc.Shiny is Shiny.Random && criteria.Shiny.IsShiny() != pk.IsShiny)
+        var pid = GetAdaptedPID(ref rand, pk, enc);
+        if (enc.Shiny is Shiny.Random && criteria.IsSpecifiedShiny() && !criteria.IsSatisfiedShiny(GetShinyXor(pid, pk.ID32), 16))
             return false;
+        pk.PID = pid;
 
         const int UNSET = -1;
         const int MAX = 31;
@@ -121,14 +121,14 @@ public static class Encounter9RNG
             return false;
         pk.Gender = gender;
 
-        var nature = enc.Nature != Nature.Random ? enc.Nature : enc.Species == (int)Species.Toxtricity
+        var nature = enc.Nature.IsFixed ? enc.Nature : enc.Species == (int)Species.Toxtricity
                 ? ToxtricityUtil.GetRandomNature(ref rand, pk.Form)
                 : (Nature)rand.NextInt(25);
 
         // Compromise on Nature -- some are fixed, some are random. If the request wants a specific nature, just mint it.
         if (criteria.IsSpecifiedNature() && !criteria.IsSatisfiedNature(nature))
             return false;
-        pk.Nature = pk.StatNature = nature;
+        pk.Nature = pk.StatAlignment = nature;
 
         pk.HeightScalar = enc.Height != 0 ? enc.Height : (byte)(rand.NextInt(0x81) + rand.NextInt(0x80));
         pk.WeightScalar = enc.Weight != 0 ? enc.Weight : (byte)(rand.NextInt(0x81) + rand.NextInt(0x80));
@@ -205,7 +205,7 @@ public static class Encounter9RNG
         if (pk.Gender != gender)
             return false;
 
-        var nature = enc.Nature != Nature.Random ? enc.Nature : enc.Species == (int)Species.Toxtricity
+        var nature = enc.Nature.IsFixed ? enc.Nature : enc.Species == (int)Species.Toxtricity
                 ? ToxtricityUtil.GetRandomNature(ref rand, pk.Form)
                 : (Nature)rand.NextInt(25);
         if (pk.Nature != nature)
@@ -220,8 +220,16 @@ public static class Encounter9RNG
         if (enc.Weight == 0)
         {
             var value = (byte)(rand.NextInt(0x81) + rand.NextInt(0x80));
-            if (pk is IScaledSize s && s.WeightScalar != value)
-                return false;
+            if (pk is IScaledSize s)
+            {
+                var actual = s.WeightScalar;
+                if (actual != value)
+                {
+                    var isHomeZeroed = actual != 0 && s.HeightScalar == 0 && HomeQuirks.HasEnteredSetZeroScale(pk);
+                    if (!isHomeZeroed)
+                        return false;
+                }
+            }
         }
         // Scale
         {
@@ -242,18 +250,11 @@ public static class Encounter9RNG
 
     public static bool IsHeightMatchSV(PKM pk, byte value)
     {
-        // HOME copies Scale to Height. Untouched by HOME must match the value.
-        // Viewing the save file in HOME will alter it too. Tracker definitely indicates it was viewed.
         if (pk is not (IScaledSize s2 and IScaledSize3 s3))
             return true;
 
         // Viewed in HOME.
-        if (s2.HeightScalar == s3.Scale)
-            return true;
-        if (pk is IHomeTrack { HasTracker: true })
-            return false;
-
-        return s2.HeightScalar == value;
+        return HomeQuirks.IsTouchedScaleCopiedOrUntouched(pk, value, s2, s3);
     }
 
     private static uint GetAdaptedPID(ref Xoroshiro128Plus rand, PKM pk, in GenerateParam9 enc)

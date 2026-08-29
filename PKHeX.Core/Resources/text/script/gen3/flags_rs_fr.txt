@@ -9,14 +9,14 @@
 0302	s	CS08 Reçue Avant L'Éveil de Groudon/Kyogre
 0x05A	s	Vélo Course/Cross Reçu
 
-0x807	*	Badge Roche Reçu
-0x808	*	Badge Poing Reçu
-0x809	*	Badge Dynamo Reçu
-0x80A	*	Badge Chaleur Reçu
-0x80B	*	Badge Balancier Reçu
-0x80C	*	Badge Plume Reçu
-0x80D	*	Badge Esprit Reçu (Entrée Planque Magma/Aqua Scellée)
-0x80E	*	Badge Pluie Reçu
+0x807	s	Badge Roche Reçu
+0x808	s	Badge Poing Reçu
+0x809	s	Badge Dynamo Reçu
+0x80A	s	Badge Chaleur Reçu
+0x80B	s	Badge Balancier Reçu
+0x80C	s	Badge Plume Reçu
+0x80D	s	Badge Esprit Reçu (Entrée Planque Magma/Aqua Scellée)
+0x80E	s	Badge Pluie Reçu
 
 0x099	g	Échange Interne Parecool Contre Makuhita (Mérouville)
 0x09A	g	Échange Interne Joliflor Contre Corayon (Pacifiville)
@@ -38,9 +38,9 @@
 0x3A7	r	Caché sur la Carte (Regirock)
 0x3A8	r	Caché sur la Carte (Regice)
 0x3A9	r	Caché sur la Carte (Registeel)
-0x3C3	r	Caché sur la Carte (Fossile Racine)
-0x3C4	r	Caché sur la Carte (Fossile Griffe)
-1133	r	Caché sur la Carte (Balle de la CS08 Manquée dans la Maison de Pierre)
+0x3C3	g	Caché sur la Carte (Fossile Racine)
+0x3C4	g	Caché sur la Carte (Fossile Griffe)
+1133	s	Caché sur la Carte (Balle de la CS08 Manquée dans la Maison de Pierre)
 0x3C9	r	Kecleon Révélé (Cimetronelle)
 0x3CA	r	Kecleon Révélé (Route 120, Pont)
 0x3D5	r	Kecleon Révélé (Route 120, Pont)
@@ -101,30 +101,30 @@
 2077	f	Peut Voler à Atalanopolis
 2078	f	Peut Voler à Éternara
 2120	f	Peut Voler à la Tour de Combat
-2108	m	A Visité le Fleuriste Jolie Fleur (Route 104)
-2109	m	A Visité le Cottage de M. Marco
-2110	m	A Visité l'Épave
-2111	m	A Visité la Maison du Bord de Mer (Chenal 109)
-2112	m	A Visité New Lavandia
-2113	m	A Visité le Gîte Vieille Dame (Route 111)
-2114	m	A Visité la Maison des Pièges
-2115	m	A Visité la Maison de la Famille Stratège (Route 111)
-2116	m	A Visité l'Atelier du Verre (Route 113)
-2117	m	A Visité la Maison d'Annette (Route 114)
-2118	m	A Visité la Pension Pokémon
-2119	m	A Visité la Caverne Fondmer
-2122	m	A Visité le Chemin Ardent
-2132	m	A Visité la Ligue Pokémon
-2133	m	A Visité la Grotte Island
-2134	m	A Visité les Ruines Désert
-2135	m	A Visité la Maison du Maniaque des Fossiles (Route 114)
-2136	m	A Visité la Grotte Zénith
-2137	m	A Visité le Tombeau Antique
-2138	m	A Visité le Refuge des Foreurs (Route 116)
-2139	m	A Visité la Maison du Chercheur de Trésors (Chenal 124)
-2140	m	A Visité le Sanctuaire
-2142	m	A Visité le Pilier Céleste
-2147	m	A Visité la Maison du Maître des Baies
+2108	f	A Visité le Fleuriste Jolie Fleur (Route 104)
+2109	f	A Visité le Cottage de M. Marco
+2110	f	A Visité l'Épave
+2111	f	A Visité la Maison du Bord de Mer (Chenal 109)
+2112	f	A Visité New Lavandia
+2113	f	A Visité le Gîte Vieille Dame (Route 111)
+2114	f	A Visité la Maison des Pièges
+2115	f	A Visité la Maison de la Famille Stratège (Route 111)
+2116	f	A Visité l'Atelier du Verre (Route 113)
+2117	f	A Visité la Maison d'Annette (Route 114)
+2118	f	A Visité la Pension Pokémon
+2119	f	A Visité la Caverne Fondmer
+2122	f	A Visité le Chemin Ardent
+2132	f	A Visité la Ligue Pokémon
+2133	f	A Visité la Grotte Island
+2134	f	A Visité les Ruines Désert
+2135	f	A Visité la Maison du Maniaque des Fossiles (Route 114)
+2136	f	A Visité la Grotte Zénith
+2137	f	A Visité le Tombeau Antique
+2138	f	A Visité le Refuge des Foreurs (Route 116)
+2139	f	A Visité la Maison du Chercheur de Trésors (Chenal 124)
+2140	f	A Visité le Sanctuaire
+2142	f	A Visité le Pilier Céleste
+2147	f	A Visité la Maison du Maître des Baies
 0768	s	Famille Stratège Vaincue
 1800	t	Dresseur Pokémon Brice à la Route 103 Vaincu (Gobou comme Départ)
 1801	t	Dresseur Pokémon Brice à la Route 110 Vaincu (Gobou comme Départ)

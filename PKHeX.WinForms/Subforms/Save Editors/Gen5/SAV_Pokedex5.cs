@@ -43,7 +43,6 @@ public partial class SAV_Pokedex5 : Form
             CB_Species.SelectedValue = (int)Dex.InitialSpecies;
         else
             LB_Species.SelectedIndex = 0;
-        CB_Species.KeyDown += WinFormsUtil.RemoveDropCB;
     }
 
     private readonly CheckBox[] CP;
@@ -115,7 +114,6 @@ public partial class SAV_Pokedex5 : Form
 
     private void GetEntry(bool skipFormRepop = false)
     {
-        // Load Bools for the data
         int pk = species;
 
         // Load Partitions
@@ -240,7 +238,7 @@ public partial class SAV_Pokedex5 : Form
         var language = (LanguageID)SAV.Language;
         Dex.GiveAll(species, ModifierKeys != Keys.Alt, ModifierKeys.HasFlag(Keys.Shift), language, ModifierKeys.HasFlag(Keys.Control));
         GetEntry(skipFormRepop: true);
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private void B_Modify_Click(object sender, EventArgs e)
@@ -262,7 +260,7 @@ public partial class SAV_Pokedex5 : Form
         if (sender == mnuCaughtAll || sender == mnuComplete)
             Dex.CaughtAll(language, allLanguages: ModifierKeys.HasFlag(Keys.Control));
         GetEntry(skipFormRepop: true);
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private void UpdateDisplayedForm(object sender, ItemCheckEventArgs e)
@@ -299,6 +297,6 @@ public partial class SAV_Pokedex5 : Form
         else if (sender == mnuFormAll)
             Dex.SetFormsSeen(shinyToo: ModifierKeys.HasFlag(Keys.Shift));
         GetEntry(skipFormRepop: true);
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 }

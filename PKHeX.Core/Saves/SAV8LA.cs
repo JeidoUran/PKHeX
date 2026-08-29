@@ -6,7 +6,7 @@ namespace PKHeX.Core;
 /// <summary>
 /// Generation 8 <see cref="SaveFile"/> object for <see cref="GameVersion.PLA"/> games.
 /// </summary>
-public sealed class SAV8LA : SaveFile, ISaveBlock8LA, ISCBlockArray, ISaveFileRevision, IBoxDetailName, IBoxDetailWallpaper
+public sealed class SAV8LA : SaveFile, ISaveBlock8LA, ISCBlockArray, ISaveFileRevision, IBoxDetailName, IBoxDetailWallpaper, ITrainerInfo8a
 {
     protected internal override string ShortSummary => $"{OT} ({Version}) - {LastSaved.DisplayValue}";
     public override string Extension => string.Empty;
@@ -36,7 +36,7 @@ public sealed class SAV8LA : SaveFile, ISaveBlock8LA, ISCBlockArray, ISaveFileRe
     {
         0 => "-Base", // Vanilla
         1 => "-DB", // DLC 1: Daybreak
-        _ => throw new ArgumentOutOfRangeException(nameof(SaveRevision)),
+        _ => throw new ArgumentOutOfRangeException(nameof(SaveRevision), SaveRevision, null),
     };
 
     public override string GetString(ReadOnlySpan<byte> data)
@@ -57,11 +57,11 @@ public sealed class SAV8LA : SaveFile, ISaveBlock8LA, ISCBlockArray, ISaveFileRe
         State.Edited = true;
     }
 
-    protected override int SIZE_STORED => PokeCrypto.SIZE_8ASTORED;
-    protected override int SIZE_PARTY => PokeCrypto.SIZE_8APARTY;
+    public override int SIZE_STORED => PokeCrypto.SIZE_8ASTORED;
+    public override int SIZE_PARTY => PokeCrypto.SIZE_8APARTY;
     public override int SIZE_BOXSLOT => PokeCrypto.SIZE_8ASTORED;
-    protected override PA8 GetPKM(byte[] data) => new(data);
-    protected override byte[] DecryptPKM(byte[] data) => PokeCrypto.DecryptArray8A(data);
+    protected override PA8 GetPKM(Memory<byte> data) => new(data);
+    protected override void DecryptPKM(Span<byte> data) => PokeCrypto.Decrypt8A(data);
 
     public override PA8 BlankPKM => new();
     public override Type PKMType => typeof(PA8);
@@ -136,6 +136,33 @@ public sealed class SAV8LA : SaveFile, ISaveBlock8LA, ISCBlockArray, ISaveFileRe
     protected override Span<byte> PartyBuffer => PartyInfo.Data;
 
     public override bool HasPokeDex => true;
+
+    public byte GetShinyRolls(ushort species)
+    {
+        // Level 10: +1
+        // Perfect: +2
+        // Shiny Charm: +3
+
+        var dex = PokedexSave;
+        byte rolls = HasKeyItem(632) ? (byte)(1 + 3) : (byte)1;
+        if (!dex.IsComplete(species))
+            return rolls;
+        if (!dex.IsPerfect(species))
+            return (byte)(rolls + 1);
+        return (byte)(rolls + 3);
+    }
+
+    private bool HasKeyItem(ushort item)
+    {
+        var span = Accessor.GetBlock(SaveBlockAccessor8LA.KItemKey).Data;
+        // Look for (u16 632, u16 1) after reinterpreting as u32, respecting endianness as Little Endian
+        var cast = System.Runtime.InteropServices.MemoryMarshal.Cast<byte, uint>(span);
+        var seek = (uint)(item | (1 << 16)); // 0x00010278
+        if (!BitConverter.IsLittleEndian)
+            seek = System.Buffers.Binary.BinaryPrimitives.ReverseEndianness(seek);
+        return cast.Contains(seek);
+    }
+
     private void Initialize()
     {
         Box = 0;

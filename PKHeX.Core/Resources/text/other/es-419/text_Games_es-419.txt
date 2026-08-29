@@ -1,9 +1,9 @@
-﻿
+
 Zafiro
 Rubí
 Esmeralda
-RojoFuego
-VerdeHoja
+Rojo Fuego
+Verde Hoja
 
 Oro HeartGold
 Plata SoulSilver
@@ -51,3 +51,4 @@ Perla Reluciente
 Escarlata
 Púrpura
 Leyendas: Z-A
+Champions

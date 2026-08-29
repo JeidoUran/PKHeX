@@ -9,10 +9,17 @@ namespace PKHeX.WinForms;
 public partial class EntitySearchSetup : Form
 {
     private EntityInstructionBuilder? UC_Builder;
-    private SaveFile? CurrentSave;
+    private SaveFile CurrentSave;
     public Func<PKM, bool>? SearchFilter { get; private set; }
 
-    public EntitySearchSetup() => InitializeComponent();
+    public EntitySearchSetup(IPKMView edit, SaveFile sav)
+    {
+        CurrentSave = sav;
+        InitializeComponent();
+        Initialize(sav);
+        EnsureBuilder(edit);
+        WinFormsUtil.TranslateInterface(this, Main.CurrentLanguage);
+    }
 
     /// <summary>
     /// Occurs when the Search action is requested.
@@ -38,17 +45,13 @@ public partial class EntitySearchSetup : Form
     /// Initializes the search setup controls using the provided save file.
     /// </summary>
     /// <param name="sav">Save file used to configure search settings.</param>
-    /// <param name="edit">Editor to provide the current PKM.</param>
-    public void Initialize(SaveFile sav, IPKMView edit)
+    private void Initialize(SaveFile sav)
     {
-        ArgumentNullException.ThrowIfNull(sav);
-
+        WinFormsUtil.TranslateInterface(this, Main.CurrentLanguage);
         UC_EntitySearch.PopulateComboBoxes(GameInfo.FilteredSources);
         UC_EntitySearch.SetFormatAnyText(MsgAny);
         UC_EntitySearch.InitializeSelections(sav, showContext: false);
         CurrentSave = sav;
-        EnsureBuilder(edit);
-        WinFormsUtil.TranslateInterface(this, Main.CurrentLanguage);
     }
 
     protected override void OnShown(EventArgs e)
@@ -81,7 +84,6 @@ public partial class EntitySearchSetup : Form
             Hide();
             return;
         }
-        CurrentSave = null;
         SearchFilter = null;
         base.OnFormClosing(e);
     }
@@ -106,13 +108,13 @@ public partial class EntitySearchSetup : Form
         SearchFilter = UC_EntitySearch.GetFilter(RTB_Instructions.Text);
         SearchRequested?.Invoke(this, EventArgs.Empty);
         B_Next.Visible = B_Previous.Visible = true;
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private void B_Reset_Click(object? sender, EventArgs e)
     {
         ForceReset();
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private void B_Add_Click(object? sender, EventArgs e)
@@ -134,7 +136,7 @@ public partial class EntitySearchSetup : Form
         tb.AppendText(s);
     }
 
-    public bool IsSameSaveFile(SaveFile sav) => CurrentSave is not null && CurrentSave == sav;
+    public bool IsSameSaveFile(SaveFile sav) => CurrentSave == sav;
 
     public void ForceReset()
     {

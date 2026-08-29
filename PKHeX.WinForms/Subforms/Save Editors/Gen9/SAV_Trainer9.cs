@@ -22,10 +22,8 @@ public partial class SAV_Trainer9 : Form
         SAV = (SAV9SV)(Origin = sav).Clone();
 
         Loading = true;
-        if (Main.Unicode)
-        {
-            TB_OTName.Font = FontUtil.GetPKXFont();
-        }
+        if (!Main.Unicode)
+            TB_OTName.DisableInGameFont = true;
 
         B_MaxCash.Click += (_, _) => MT_Money.Text = SAV.MaxMoney.ToString();
         B_MaxLP.Click += (_, _) => MT_LP.Text = SAV.MaxMoney.ToString();
@@ -37,7 +35,7 @@ public partial class SAV_Trainer9 : Form
         CB_Game.Items.Add(games[(int)GameVersion.VL]);
 
         CB_Gender.Items.Clear();
-        CB_Gender.Items.AddRange(Main.GenderSymbols.Take(2).ToArray()); // m/f depending on unicode selection
+        CB_Gender.Items.AddRange([.. Main.GenderSymbols.Take(2)]); // m/f depending on unicode selection
 
         GetImages();
         GetComboBoxes();
@@ -111,7 +109,7 @@ public partial class SAV_Trainer9 : Form
 
         // Display Data
         TB_OTName.Text = SAV.OT;
-        trainerID1.LoadIDValues(SAV, SAV.Generation);
+        trainerID1.LoadTrainer(SAV);
         MT_Money.Text = SAV.Money.ToString();
         MT_LP.Text = SAV.LeaguePoints.ToString();
         CB_Language.SelectedValue = SAV.Language;
@@ -159,7 +157,10 @@ public partial class SAV_Trainer9 : Form
         SAV.Money = Util.ToUInt32(MT_Money.Text);
         SAV.LeaguePoints = Util.ToUInt32(MT_LP.Text);
         SAV.Language = WinFormsUtil.GetIndex(CB_Language);
-        SAV.OT = TB_OTName.Text;
+
+        // only modify if changed (preserve trash bytes?)
+        if (SAV.OT != TB_OTName.Text)
+            SAV.OT = TB_OTName.Text;
 
         // Save PlayTime
         SAV.PlayedHours = ushort.Parse(MT_Hours.Text);
@@ -175,14 +176,10 @@ public partial class SAV_Trainer9 : Form
 
     private void ClickOT(object sender, MouseEventArgs e)
     {
-        TextBox tb = sender as TextBox ?? TB_OTName;
         // Special Character Form
         if (ModifierKeys != Keys.Control)
             return;
-
-        var d = new TrashEditor(tb, SAV, SAV.Generation, SAV.Context);
-        d.ShowDialog();
-        tb.Text = d.FinalString;
+        TrashEditor.Show(TB_OTName, SAV, SAV.MyStatus.OriginalTrainerTrash);
     }
 
     private void B_Cancel_Click(object sender, EventArgs e)
@@ -219,7 +216,7 @@ public partial class SAV_Trainer9 : Form
                 block.ChangeBooleanType(SCTypeCode.Bool2);
         }
         B_UnlockFlyLocations.Enabled = false;
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private static ReadOnlySpan<uint> FlyHashes =>
@@ -344,28 +341,28 @@ public partial class SAV_Trainer9 : Form
     {
         SAV.CollectAllStakes();
         B_CollectAllStakes.Enabled = false;
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private void B_UnlockTMRecipes_Click(object sender, EventArgs e)
     {
         SAV.UnlockAllTMRecipes();
         B_UnlockTMRecipes.Enabled = false;
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private void B_ActivateSnacksworthLegendaries_Click(object sender, EventArgs e)
     {
         SAV.ActivateSnacksworthLegendaries();
         B_ActivateSnacksworthLegendaries.Enabled = false;
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private void B_UnlockCoaches_Click(object sender, EventArgs e)
     {
         SAV.UnlockAllCoaches();
         B_UnlockCoaches.Enabled = false;
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private void B_UnlockBikeUpgrades_Click(object sender, EventArgs e)
@@ -385,7 +382,7 @@ public partial class SAV_Trainer9 : Form
         if (accessor.TryGetBlock("FSYS_RIDE_FLIGHT_ENABLE", out var fly))
             fly.ChangeBooleanType(SCTypeCode.Bool2); // Base & DLC1 saves do not have this block
         B_UnlockBikeUpgrades.Enabled = false;
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     public static void IMG_Save(Image image, string name)
@@ -406,7 +403,7 @@ public partial class SAV_Trainer9 : Form
             _ => ImageFormat.Png,
         };
         image.Save(path, format);
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private void P_CurrPhoto_Click(object sender, EventArgs e) => IMG_Save(P_CurrPhoto.Image!, "current_photo");
@@ -418,13 +415,13 @@ public partial class SAV_Trainer9 : Form
         var accessor = SAV.Accessor;
         PlayerFashionUnlock9.UnlockBase(accessor, SAV.Gender);
         B_UnlockClothing.Enabled = false;
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private void B_UnlockThrowStyles_Click(object sender, EventArgs e)
     {
         SAV.UnlockAllThrowStyles();
         B_UnlockThrowStyles.Enabled = false;
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 }
