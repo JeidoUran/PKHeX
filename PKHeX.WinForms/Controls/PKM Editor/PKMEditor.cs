@@ -73,6 +73,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         TB_Level.MouseWheel += WinFormsUtil.MouseWheelIncrement1;
         TB_Friendship.MouseWheel += WinFormsUtil.MouseWheelIncrement1;
         ExperienceBar.ValueChanged += (_, _) => TB_EXP.Text = ExperienceBar.EXP.ToString();
+        InitializeEditorWorkspace();
     }
 
     private void ClickManualAbility(object sender, EventArgs e)
@@ -2363,7 +2364,14 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
     private void ChangeSelectedTabIndex(object? sender, EventArgs e)
     {
         // flip to the tab-less control's tab
+        var previous = Hidden_TC.SelectedTab;
+        if ((uint)TC_Editor.SelectedIndex < Hidden_TC.TabCount)
+        {
+            var requested = Hidden_TC.TabPages[TC_Editor.SelectedIndex];
+            foreach (var pane in ExtraEditorPanes.Where(p => p.Page == requested)) pane.Page = previous;
+        }
         Hidden_TC.SelectedIndex = TC_Editor.SelectedIndex;
+        ArrangeEditorPanes();
         // reset focus back to the vertical tab selection rather than the inaccessible tab
         TC_Editor.Focus();
     }

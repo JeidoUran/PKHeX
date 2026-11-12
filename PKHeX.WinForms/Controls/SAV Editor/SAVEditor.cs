@@ -19,6 +19,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
 
     public void SetEditEnvironment(SaveDataEditor<PictureBox> value)
     {
+        ClearAdaptiveBoxes();
         EditEnv = value;
         M.Env = value;
         menu.Editor = value;
@@ -88,6 +89,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
         menu = new ContextMenuSAV { Manager = M };
         components!.Add(menu);
         InitializeEvents();
+        InitializeAdaptiveBoxes();
     }
 
     private void InitializeEvents()
@@ -118,9 +120,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
     {
         if (!SAV.HasBox)
             return;
-        Box.HorizontallyCenter(Tab_Box);
-        BoxSearchAlignButton();
-        BoxPopoutAlignButton();
+        LayoutAdaptiveBoxes();
     }
 
     private void InitializeDragDrop(Control pb)
@@ -1202,11 +1202,13 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
         BoxPopoutAlignButton();
 
         FieldsLoaded = true;
+        LayoutAdaptiveBoxes();
         return WindowTranslationRequired;
     }
 
     private void ToggleViewReset()
     {
+        ClearAdaptiveBoxes();
         // Close sub-forms that are SaveFile dependent
         foreach (var z in M.Boxes.Skip(1).ToArray())
             z.FindForm()?.Close();

@@ -1,4 +1,5 @@
 using System;
+using System.Drawing;
 using System.Windows.Forms;
 using PKHeX.Core;
 using PKHeX.Drawing.PokeSprite;
@@ -21,6 +22,15 @@ public partial class StatusConditionView : UserControl
     {
         InitializeComponent();
         PB_Status.MouseHover += (_, _) => PB_Status.Cursor = Cursors.Hand;
+        PB_Status.SizeMode = PictureBoxSizeMode.CenterImage;
+        PB_Status.AccessibleName = "Status condition";
+        PB_Status.Paint += (_, e) =>
+        {
+            ControlPaint.DrawBorder(e.Graphics, PB_Status.ClientRectangle, SystemColors.ControlDark, ButtonBorderStyle.Solid);
+            if (PB_Status.Image is null)
+                TextRenderer.DrawText(e.Graphics, Main.CurrentLanguage == "fr" ? "Statut…" : "Status…", Font,
+                    PB_Status.ClientRectangle, ForeColor, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+        };
     }
 
     public void LoadPKM(PKM entity)

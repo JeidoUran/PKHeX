@@ -148,6 +148,7 @@ public partial class SAV_Database : Form
                 e.Cancel = true;
         };
         UC_EntitySearch.SetFormatAnyText(MsgAny);
+        UC_EntitySearch.EnableHomeSourceFormat();
         CenterToParent();
         FormClosing += (_, _) => ShowSet.Clear();
 
@@ -520,6 +521,8 @@ public partial class SAV_Database : Form
         var settings = GetSearchSettings();
 
         IEnumerable<SlotCache> res = RawDB;
+        if (UC_EntitySearch.HomeSourcesOnly)
+            res = res.Where(z => z.Source is SlotInfoFileHome);
 
         // pre-filter based on the file path (if specified)
         if (!Menu_SearchBoxes.Checked)

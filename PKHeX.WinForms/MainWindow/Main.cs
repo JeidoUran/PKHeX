@@ -37,6 +37,7 @@ public partial class Main : Form
         }
 #endif
         FormInitializeSecond();
+        InitializeWorkspace();
     }
 
     #region Important Variables

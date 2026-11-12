@@ -20,6 +20,7 @@ public partial class BoxEditor : UserControl, ISlotViewer<PictureBox>
     public SlotChangeManager? M { get; set; }
     public bool FlagIllegal { get; set; }
     public bool CanSetCurrentBox { get; set; }
+    public event EventHandler? CurrentBoxChanged;
 
     public BoxEdit Editor { get; set; } = null!;
 
@@ -322,6 +323,7 @@ public partial class BoxEditor : UserControl, ISlotViewer<PictureBox>
             SAV.CurrentBox = CurrentBox;
         ResetSlots();
         M?.Hover.Stop();
+        CurrentBoxChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void ClickBoxLeft(object? sender, EventArgs e) => CurrentBox = Editor.MoveLeft(ModifierKeys == Keys.Control);
