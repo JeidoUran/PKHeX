@@ -201,15 +201,32 @@ public partial class SAV_Database : Form
 
         var slot = Results[index];
         var temp = slot.Entity;
-        var pk = EntityConverter.ConvertToType(temp, SAV.PKMType, out var c);
-        if (pk is null)
+        PKM? pk;
+        if (slot.Source is SlotInfoFileHome source)
         {
-            WinFormsUtil.Error(c.GetDisplayString(temp, SAV.PKMType));
-            return;
+            pk = source.Home.CreateCompatibleEntity(SAV.PKMType);
+            if (pk is null)
+            {
+                // Inspection must remain available even when the open save cannot hold this species.
+                HomeDataViewer.ShowWindow(this, source.Home, source.Path);
+                return;
+            }
+        }
+        else
+        {
+            pk = EntityConverter.ConvertToType(temp, SAV.PKMType, out var c);
+            if (pk is null)
+            {
+                WinFormsUtil.Error(c.GetDisplayString(temp, SAV.PKMType));
+                return;
+            }
         }
         SAV.AdaptToSaveFile(pk);
         pk.RefreshChecksum();
-        PKME_Tabs.PopulateFields(pk, false);
+        if (slot.Source is SlotInfoFileHome home)
+            PKME_Tabs.PopulateHomeFields(pk, home.Home, home.Path);
+        else
+            PKME_Tabs.PopulateFields(pk, false);
 
         slotSelected = index;
         slotColor = SpriteUtil.Spriter.View;
@@ -231,6 +248,13 @@ public partial class SAV_Database : Form
         var entry = Results[index];
         var pk = entry.Entity;
 
+        if (entry.Source is SlotInfoFileHome)
+        {
+            WinFormsUtil.Alert(GameInfo.CurrentLanguage == "fr"
+                ? "Les sources HOME sont en lecture seule dans cette base."
+                : "HOME sources are read-only in this database.");
+            return;
+        }
         if (entry.Source is SlotInfoFileSingle(var path))
         {
             // Data from Database: Delete file from disk
@@ -393,7 +417,7 @@ public partial class SAV_Database : Form
         {
             var filter = EntityPresenceFilters.GetFilterEntity(sav.Context);
             if (filter is not null)
-                result.RemoveAll(z => !filter(z.Entity));
+                result.RemoveAll(z => !filter(z.Entity) && (z.Source is not SlotInfoFileHome || Main.Settings.EntityDb.FilterHomeByCurrentSave));
         }
 
         var sort = Main.Settings.EntityDb.InitialSortMode;
@@ -501,7 +525,7 @@ public partial class SAV_Database : Form
         if (!Menu_SearchBoxes.Checked)
             res = res.Where(z => z.SAV != SAV);
         if (!Menu_SearchDatabase.Checked)
-            res = res.Where(z => !IsIndividualFilePKMDB(z));
+            res = res.Where(z => !IsIndividualFilePKMDB(z) && z.Source is not SlotInfoFileHome);
         if (!Menu_SearchBackups.Checked)
             res = res.Where(z => !IsBackupSaveFile(z));
 

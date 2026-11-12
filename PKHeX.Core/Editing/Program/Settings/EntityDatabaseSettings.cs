@@ -22,6 +22,9 @@ public sealed class EntityDatabaseSettings
     [LocalizedDescription("Hides unavailable Species if the currently loaded save file cannot import them.")]
     public bool FilterUnavailableSpecies { get; set; } = true;
 
+    [LocalizedDescription("Also apply the current save's species filter to HOME files. Disabled to keep the full HOME collection visible.")]
+    public bool FilterHomeByCurrentSave { get; set; }
+
     [LocalizedDescription("Visible row count for the sprite grid. Clamped from 5 to 20.")]
     public int ResultsGridRowCount
     {

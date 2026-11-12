@@ -25,6 +25,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
     public PKMEditor()
     {
         InitializeComponent();
+        InitializeHomeTab();
 
         // Commonly reused Control arrays
         Moves = [MC_Move1, MC_Move2, MC_Move3, MC_Move4];
@@ -325,6 +326,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
 
         FieldsLoaded = false;
 
+        HomeViewer.SetSource(null, string.Empty);
         Entity = pk.Clone();
 
 #if !DEBUG
@@ -2039,6 +2041,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
     /// <param name="pk">Pokémon data to edit</param>
     public bool ToggleInterface(SaveFile sav, PKM pk)
     {
+        HomeViewer.SetSource(null, string.Empty);
         Entity = sav.GetCompatiblePKM(pk);
         ToggleInterface(Entity);
         return FinalizeInterface(sav);

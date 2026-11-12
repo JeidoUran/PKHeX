@@ -42,6 +42,7 @@ public sealed class SlotCache : IComparable<SlotCache>
     public string Identify() => GetFileName() + Source switch
     {
         SlotInfoBox box => $"[{box.Box + 1:00}] ({GetBoxName(box.Box)})-{box.Slot + 1:00}: {Entity.FileName}",
+        SlotInfoFileHome home => $"HOME: {home.Path}",
         SlotInfoFileSingle single => $"File: {single.Path}",
         SlotInfoFileMulti multi => $"File: {multi.Path} Slot: {multi.Slot}: {Entity.FileName}",
         SlotInfoMisc misc => $"{misc.Type}-{misc.Slot}: {Entity.FileName}",

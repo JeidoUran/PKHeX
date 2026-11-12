@@ -520,7 +520,7 @@ public partial class Main : Form
 
     private void OpenFromPath(string path)
     {
-        if (Plugins.Any(p => p.TryLoadFile(path)))
+        if (!HomeFile.IsHomeExtension(Path.GetExtension(path)) && Plugins.Any(p => p.TryLoadFile(path)))
             return; // handled by plugin
 
         // detect if it is a folder (load into boxes or not)
@@ -555,6 +555,20 @@ public partial class Main : Form
 
     internal void OpenFile(Memory<byte> input, string path, string ext)
     {
+        if (HomeFile.IsHomeExtension(ext))
+        {
+            if (HomeFile.TryCreate(input.Span, out var home))
+            {
+                var entity = home.CreateCompatibleEntity(C_SAV.SAV.PKMType);
+                if (entity is not null)
+                    PKME_Tabs.PopulateHomeFields(entity, home, path);
+                else
+                    HomeDataViewer.ShowWindow(this, home, path);
+                return;
+            }
+            WinFormsUtil.Error(MsgPKMUnsupported, path);
+            return;
+        }
         var obj = FileUtil.GetSupportedFile(input, ext, C_SAV.SAV);
         if (obj is not null && LoadFile(obj, path))
             return;
@@ -838,7 +852,7 @@ public partial class Main : Form
         var v = Program.CurrentVersion;
         string version = $"{2000+v.Major:00}{v.Minor:00}{v.Build:00}";
 #endif
-        return $"PKH{(HaX ? "a" : "e")}X ({version})";
+        return $"PKH{(HaX ? "a" : "e")}X ({version}) — HOME DB preview";
     }
 
     private static string GetProgramTitle(SaveFile sav)
