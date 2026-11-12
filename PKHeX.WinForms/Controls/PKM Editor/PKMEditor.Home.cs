@@ -14,8 +14,15 @@ public sealed partial class PKMEditor
         contents.Controls.Add(HomeViewer);
         Hidden_TC.TabPages.Add(contents);
         TC_Editor.TabPages.Add(new TabPage { Name = "Tab_HOME", Text = "HOME" });
-        // The existing six-tab rail is fixed-height; make room for the seventh entry.
-        TC_Editor.Height += TC_Editor.ItemSize.Width;
+        Layout += (_, _) => ArrangeHomeStatus();
+        ArrangeHomeStatus();
+    }
+
+    private void ArrangeHomeStatus()
+    {
+        int Scale(int value) => (int)System.Math.Round(value * DeviceDpi / 96d);
+        TC_Editor.Height = TC_Editor.TabCount * TC_Editor.ItemSize.Width + Scale(5);
+        StatusView.SetBounds(Scale(2), TC_Editor.Bottom + Scale(4), TC_Editor.Width - Scale(4), Scale(40));
     }
 
     public void PopulateHomeFields(PKM gameEntity, HomeFile source, string path)

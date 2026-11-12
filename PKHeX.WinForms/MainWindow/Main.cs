@@ -37,6 +37,7 @@ public partial class Main : Form
         }
 #endif
         FormInitializeSecond();
+        InitializeConsultationLayout();
     }
 
     #region Important Variables

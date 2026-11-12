@@ -19,9 +19,10 @@ internal static class Program
         if (!condition) throw new InvalidOperationException(description);
         checks++; Console.WriteLine("PASS " + description);
     }
-    private static T Field<T>(object owner, string name) => (T)(owner.GetType().GetField(name, Private)
+    private static Type OwnerType(object owner) => owner is MainWindow ? typeof(MainWindow) : owner.GetType();
+    private static T Field<T>(object owner, string name) => (T)(OwnerType(owner).GetField(name, Private)
         ?? throw new MissingFieldException(owner.GetType().Name, name)).GetValue(owner)!;
-    private static object? Invoke(object owner, string name, params object[] args) => owner.GetType().GetMethod(name, Private)!.Invoke(owner, args);
+    private static object? Invoke(object owner, string name, params object[] args) => OwnerType(owner).GetMethod(name, Private)!.Invoke(owner, args);
 
     [STAThread]
     private static int Main(string[] args)
@@ -59,12 +60,14 @@ internal static class Program
 
             // Initialize application settings before controls; use only this test output directory.
             RuntimeHelpers.RunClassConstructor(typeof(MainWindow).Assembly.GetType("PKHeX.WinForms.Program")!.TypeHandle);
+            MainWindow.Settings.Startup.Language = "fr";
             MainWindow.Settings.EntityDb.FilterUnavailableSpecies = true;
             MainWindow.Settings.EntityDb.FilterHomeByCurrentSave = false;
             MainWindow.Settings.EntityDb.SearchBackups = MainWindow.Settings.EntityDb.SearchExtraSaves = false;
             MainWindow.Settings.LocalResources.DatabasePath = root;
-            using var main = new MainWindow();
+            using var main = new QuietMain { Opacity = 0, ShowInTaskbar = false };
             Invoke(main, "LoadBlankSaveFile", GameVersion.VL);
+            main.Show(); Application.DoEvents();
             var editor = Field<PKMEditor>(main, "PKME_Tabs");
             var saveEditor = Field<SAVEditor>(main, "C_SAV");
             using var database = new SAV_Database(editor, saveEditor);
@@ -88,6 +91,7 @@ internal static class Program
             }
             MainWindow.Settings.EntityDb.FilterHomeByCurrentSave = false;
 
+            ConsultationTests.Run(main, editor, saveEditor, database, loaded, output, Check);
             var sample = args.Length > 2 ? loaded.Single(x => ((SlotInfoFileHome)x.Source).Path == Path.GetFullPath(args[2])) : loaded.Where(x => ((SlotInfoFileHome)x.Source).Home.CreateCompatibleEntity(typeof(PK9)) is not null).OrderByDescending(x => ((SlotInfoFileHome)x.Source).Home.AvailableFormats.Length).First();
             typeof(SAV_Database).GetField("Results", Private)!.SetValue(database, new List<SlotCache> { sample });
             Invoke(database, "FillPKXBoxes", 0);
@@ -151,6 +155,10 @@ internal static class Program
     }
 
     private sealed class RenderHost : Form
+    {
+        protected override bool ShowWithoutActivation => true;
+    }
+    private sealed class QuietMain : MainWindow
     {
         protected override bool ShowWithoutActivation => true;
     }

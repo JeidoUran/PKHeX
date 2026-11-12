@@ -26,6 +26,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
     {
         InitializeComponent();
         InitializeHomeTab();
+        InitializeEncounterSummary();
 
         // Commonly reused Control arrays
         Moves = [MC_Move1, MC_Move2, MC_Move3, MC_Move4];
@@ -362,6 +363,8 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
             return;
 
         Legality = la ?? new LegalityAnalysis(Entity, RequestSaveFile.Personal);
+        EncounterSummary.InvalidateAnalysis();
+        RefreshEncounterSummary();
         if (!Legality.Parsed || HaX || Entity.Species == 0)
         {
             MC_Move1.HideLegality = MC_Move2.HideLegality = MC_Move3.HideLegality = MC_Move4.HideLegality = true;
@@ -2267,6 +2270,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
 
         InitializeLanguage(sav);
         CenterSubEditors();
+        RefreshEncounterSummary();
     }
 
     public void FlickerInterface()
@@ -2364,6 +2368,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
     {
         // flip to the tab-less control's tab
         Hidden_TC.SelectedIndex = TC_Editor.SelectedIndex;
+        RefreshEncounterSummary();
         // reset focus back to the vertical tab selection rather than the inaccessible tab
         TC_Editor.Focus();
     }
