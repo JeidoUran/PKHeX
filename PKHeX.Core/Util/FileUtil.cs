@@ -48,6 +48,9 @@ public static class FileUtil
     /// <returns>Supported file object reference, null if none found.</returns>
     public static object? GetSupportedFile(Memory<byte> data, ReadOnlySpan<char> ext, SaveFile? reference = null)
     {
+        // Explicit HOME files take precedence over ambiguous fixed-size formats (e.g. GP1).
+        if (HomeFile.IsHomeExtension(ext))
+            return HomeFile.TryCreate(data.Span, out var home) ? home.CreateEntity() : null;
         if (SaveUtil.TryGetSaveFile(data, out var sav))
             return sav;
         if (TryGetMemoryCard(data, out var mc))
@@ -347,6 +350,9 @@ public static class FileUtil
         var fi = new FileInfo(file);
         if (!fi.Exists)
             return null;
+        if (HomeFile.IsHomeExtension(fi.Extension))
+            return fi.Length is >= (HomeCrypto.SIZE_1HEADER + 4 + HomeCrypto.SIZE_CORE) and <= 0x330
+                && HomeFile.TryCreate(File.ReadAllBytes(file), out var home) ? home.CreateEntity() : null;
         if (fi.Length == GP1.SIZE && TryGetGP1(File.ReadAllBytes(file), out var gp1))
             return gp1.ConvertToPKM(sav);
 

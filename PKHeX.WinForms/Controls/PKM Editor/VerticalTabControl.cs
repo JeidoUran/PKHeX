@@ -73,6 +73,7 @@ public sealed class VerticalTabControlEntityEditor : VerticalTabControl
         ContestColor.Clever, // Moves
         ContestColor.Tough, // Cosmetic
         Color.RosyBrown, // OT
+        Color.SteelBlue, // HOME
     ];
 
     protected override void OnPaint(PaintEventArgs e)

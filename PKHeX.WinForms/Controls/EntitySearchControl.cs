@@ -11,6 +11,23 @@ namespace PKHeX.WinForms.Controls;
 public partial class EntitySearchControl : UserControl
 {
     private EntityContext SaveContext { get; set; } = Latest.Context;
+    private const int HomeSourceFormat = -4;
+    public bool HomeSourcesOnly => WinFormsUtil.GetIndex(CB_Format) == HomeSourceFormat;
+
+    /// <summary>HOME is a source container, not a numbered game context.</summary>
+    public void EnableHomeSourceFormat()
+    {
+        if (CB_Format.DataSource is not List<ComboItem> formats) return;
+        var value = CB_Format.SelectedValue;
+        var updated = new List<ComboItem>(formats) { new("HOME (PH4/EH4)", HomeSourceFormat) };
+        CB_Format.DataSource = updated;
+        CB_Format.SelectedValue = value ?? (int)EntityContext.None;
+        CB_Format.SelectedIndexChanged += (_, _) =>
+        {
+            CB_FormatComparator.Enabled = !HomeSourcesOnly;
+            if (HomeSourcesOnly) CB_FormatComparator.SelectedIndex = (int)SearchComparison.Equals;
+        };
+    }
 
     public EntitySearchControl() => InitializeComponent();
 
@@ -174,7 +191,7 @@ public partial class EntitySearchControl : UserControl
     {
         var settings = new SearchSettings
         {
-            Context = (EntityContext)WinFormsUtil.GetIndex(CB_Format),
+            Context = HomeSourcesOnly ? EntityContext.None : (EntityContext)WinFormsUtil.GetIndex(CB_Format),
             SearchContext = (SearchComparison)CB_FormatComparator.SelectedIndex,
             Generation = (byte)CB_Generation.SelectedIndex,
 

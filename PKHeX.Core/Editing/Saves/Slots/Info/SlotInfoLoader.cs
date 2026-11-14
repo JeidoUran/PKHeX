@@ -26,6 +26,15 @@ public static class SlotInfoLoader
     public static void AddFromLocalFile(string file, ConcurrentBag<SlotCache> db, ITrainerInfo dest, IReadOnlySet<string> validExtensions)
     {
         var fi = new FileInfo(file);
+        if (HomeFile.IsHomeExtension(fi.Extension))
+        {
+            if (fi.Length is > 0x330 or < (HomeCrypto.SIZE_1HEADER + 4 + HomeCrypto.SIZE_CORE)) return;
+            if (!HomeFile.TryCreate(File.ReadAllBytes(file), out var home)) return;
+            var projection = home.CreateProjection();
+            if (projection is not null)
+                db.Add(new SlotCache(new SlotInfoFileHome(file, home), projection));
+            return;
+        }
         if (!validExtensions.Contains(fi.Extension) || !EntityDetection.IsSizePlausible(fi.Length))
             return;
 
