@@ -205,7 +205,7 @@ public sealed class WC8(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
             {
                 if (value == RibbonByteNone)
                     return false; // end
-                if (((RibbonIndex)value).IsEncounterMark8())
+                if (((RibbonIndex)value).IsEncounterMark8)
                     return true;
             }
 
@@ -437,7 +437,7 @@ public sealed class WC8(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
             OriginalTrainerGender = OTGender < 2 ? OTGender : tr.Gender,
             HandlingTrainerName = hasOT ? tr.OT : string.Empty,
             HandlingTrainerGender = hasOT ? tr.Gender : default,
-            HandlingTrainerLanguage = (byte)(hasOT ? language : default),
+            HandlingTrainerLanguage = (byte)(hasOT ? language : 0),
             CurrentHandler = hasOT ? (byte)1 : (byte)0,
             OriginalTrainerFriendship = pi.BaseFriendship,
 
@@ -525,6 +525,12 @@ public sealed class WC8(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
             }
         }
 
+        if (Version is GameVersion.FRX) // HOME Celebi (temp workaround)
+        {
+            pk.Version = GameVersion.SW;
+            pk.MetLocation = LocationsHOME.SWFR;
+        }
+
         pk.ResetPartyStats();
         pk.RefreshChecksum();
         return pk;
@@ -568,12 +574,12 @@ public sealed class WC8(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
     private void SetPINGA(PK8 pk, in EncounterCriteria criteria)
     {
         var pi = pk.PersonalInfo;
-        pk.Nature = pk.StatNature = criteria.GetNature((sbyte)Nature == -1 ? Nature.Random : Nature);
+        pk.Nature = pk.StatAlignment = criteria.GetNature((sbyte)Nature == -1 ? Nature.Random : Nature);
         pk.Gender = criteria.GetGender(Gender, pi);
         var av = GetAbilityIndex(criteria);
         pk.RefreshAbility(av);
         SetPID(pk);
-        SetIVs(pk);
+        SetIVs(pk, criteria);
     }
 
     private int GetAbilityIndex(in EncounterCriteria criteria) => AbilityType switch
@@ -630,31 +636,12 @@ public sealed class WC8(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
         pk.PID = GetPID(pk, PIDType);
     }
 
-    private void SetIVs(PKM pk)
+    private void SetIVs(PK8 pk, in EncounterCriteria criteria)
     {
         Span<int> finalIVs = stackalloc int[6];
         GetIVs(finalIVs);
-        var ivflag = finalIVs.IndexOfAny(0xFC, 0xFD, 0xFE);
         var rng = Util.Rand;
-        if (ivflag == -1) // Random IVs
-        {
-            for (int i = 0; i < finalIVs.Length; i++)
-            {
-                if (finalIVs[i] > 31)
-                    finalIVs[i] = rng.Next(32);
-            }
-        }
-        else // 1/2/3 perfect IVs
-        {
-            int IVCount = finalIVs[ivflag] - 0xFB;
-            do { finalIVs[rng.Next(6)] = 31; }
-            while (finalIVs.Count(31) < IVCount);
-            for (int i = 0; i < finalIVs.Length; i++)
-            {
-                if (finalIVs[i] != 31)
-                    finalIVs[i] = rng.Next(32);
-            }
-        }
+        ApplyTemplateIVs(finalIVs, criteria, rng, _ => rng.Next(32));
         pk.SetIVs(finalIVs);
     }
 
@@ -674,7 +661,25 @@ public sealed class WC8(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
 
             var OT = GetOT(pk.Language); // May not be guaranteed to work.
             if (!string.IsNullOrEmpty(OT) && OT != pk.OriginalTrainerName) return false;
-            if (OriginGame != 0 && (GameVersion)OriginGame != pk.Version) return false;
+
+            if ((GameVersion)OriginGame is GameVersion.FRX) // HOME Celebi (temp workaround)
+            {
+                if (pk is PK8)
+                {
+                    if (!(pk.Version is GameVersion.SW && pk.MetLocation == LocationsHOME.SWFR))
+                        return false;
+                }
+                else
+                {
+                    if (!(pk.Version is GameVersion.FRX && pk.MetLocation != LocationsHOME.VirtualConsole3))
+                        return false;
+                }
+            }
+            else if (OriginGame != 0 && (GameVersion)OriginGame != pk.Version)
+            {
+                return false;
+            }
+
             if (EncryptionConstant != 0)
             {
                 if (EncryptionConstant != pk.EncryptionConstant)
@@ -728,7 +733,7 @@ public sealed class WC8(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
         else
         {
             if (!shinyType.IsValid(pk)) return false;
-            if (!IsMatchEggLocation(pk)) return false;
+            if (!IsMatchEggLocationInternal(pk)) return false;
             if (Location != pk.MetLocation) return false;
         }
 

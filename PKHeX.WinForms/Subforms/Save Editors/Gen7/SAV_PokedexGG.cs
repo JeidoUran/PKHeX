@@ -43,7 +43,6 @@ public partial class SAV_PokedexGG : Form
 
         editing = false;
         LB_Species.SelectedIndex = 0;
-        CB_Species.KeyDown += WinFormsUtil.RemoveDropCB;
     }
 
     private readonly Zukan7b Dex;
@@ -302,7 +301,7 @@ public partial class SAV_PokedexGG : Form
     private void CHK_RUsed_CheckedChanged(object sender, EventArgs e)
     {
         var ck = (CheckBox)sender;
-        int index = Array.IndexOf(RecordUsed, ck);
+        int index = RecordUsed.IndexOf(ck);
         var h = RecordHeight[index];
         var w = RecordWeight[index];
         var flag = RecordFlag[index];
@@ -377,7 +376,7 @@ public partial class SAV_PokedexGG : Form
         GetEntry();
         allModifying = false;
         LB_Species.SelectedIndex = 0;
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private void ClearAll(object sender)

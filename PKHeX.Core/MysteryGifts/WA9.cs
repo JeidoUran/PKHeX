@@ -39,6 +39,13 @@ public sealed class WA9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
         set => WriteUInt16LittleEndian(Data[0x8..], (ushort)value);
     }
 
+    public bool IsHOMEGift => CardID >= 9000;
+    public int HomeBaseIV => CardID switch
+    {
+        >= 9031 and <= 9033 => 20,
+        _ => 0,
+    };
+
     public byte RestrictVersion { get => Data[0xE]; set => Data[0xE] = value; } // 0x01 = ZA only (only one game in this Context, so always ZA).
     public byte CardFlags { get => Data[0x10]; set => Data[0x10] = value; }
     public GiftType CardType { get => (GiftType)Data[0x11]; set => Data[0x11] = (byte)value; }
@@ -95,16 +102,17 @@ public sealed class WA9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
     private Shiny FixedShinyType() => GetShinyXor() switch
     {
         0 => Shiny.AlwaysSquare,
-        <= 15 => Shiny.AlwaysStar,
+        <= 15 => Shiny.Always,
         _ => Shiny.Never,
     };
 
     private uint GetShinyXor()
     {
+        var id32 = IsOldIDFormat ? ID32Old : ID32;
         // Player owned anti-shiny fixed PID
-        if (ID32 == 0)
+        if (id32 == 0)
             return uint.MaxValue;
-        return ShinyUtil.GetShinyXor(PID, ID32);
+        return ShinyUtil.GetShinyXor(PID, id32);
     }
 
     // When applying the ID32, the game sets the DisplayTID7 directly, then sets PA9.DisplaySID7 as (wa9.DisplaySID7 - wa9.CardID)
@@ -153,7 +161,7 @@ public sealed class WA9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
     public override byte Form { get => Data[0x272]; set => Data[0x272] = value; }
     public override byte Gender { get => Data[0x273]; set => Data[0x273] = value; }
     public override byte Level { get => Data[0x274]; set => Data[0x274] = value; }
-    public override bool IsEgg { get => Data[0x275] == 1; set => Data[0x275] = value ? (byte)1 : (byte)0; } // before level; might be a flag for random level?
+    public override bool IsEgg { get => Data[0x275] == 1; set => Data[0x275] = value ? (byte)1 : (byte)0; }
     public Nature Nature
     {
         get
@@ -190,7 +198,7 @@ public sealed class WA9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
         {
             foreach (var value in RibbonSpan)
             {
-                if (((RibbonIndex)value).IsEncounterMark8())
+                if (((RibbonIndex)value).IsEncounterMark8)
                     return true;
             }
             return false;
@@ -203,7 +211,7 @@ public sealed class WA9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
         {
             foreach (var value in RibbonSpan)
             {
-                if (((RibbonIndex)value).IsEncounterMark9())
+                if (((RibbonIndex)value).IsEncounterMark9)
                     return true;
             }
             return false;
@@ -302,7 +310,7 @@ public sealed class WA9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
 
     public bool CanHaveLanguage(int language)
     {
-        if (language is < (int)LanguageID.Japanese or > (int)LanguageID.ChineseT)
+        if (language is < (int)LanguageID.Japanese or > (int)LanguageID.SpanishL)
             return false;
 
         if (CanBeAnyLanguage())
@@ -326,7 +334,7 @@ public sealed class WA9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
     private static int GetLanguageIndex(int language)
     {
         var lang = (LanguageID) language;
-        if (lang is < LanguageID.Japanese or LanguageID.UNUSED_6 or > LanguageID.ChineseT)
+        if (lang is < LanguageID.Japanese or LanguageID.UNUSED_6 or > LanguageID.SpanishL)
             return (int) LanguageID.English; // fallback
         return lang < LanguageID.UNUSED_6 ? language - 1 : language - 2;
     }
@@ -360,7 +368,7 @@ public sealed class WA9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
         get => GetOT(Language);
         set
         {
-            for (int i = 1; i <= (int)LanguageID.ChineseT; i++)
+            for (int i = 1; i <= (int)LanguageID.SpanishL; i++)
                 SetOT(i, value);
         }
     }
@@ -463,16 +471,6 @@ public sealed class WA9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
         pk.IsNicknamed = GetIsNicknamed(language);
         pk.Nickname = pk.IsNicknamed ? GetNickname(language) : SpeciesName.GetSpeciesNameGeneration(Species, pk.Language, Generation);
 
-        // No ribbons set.
-        // for (var i = 0; i < RibbonBytesCount; i++)
-        // {
-        //     var ribbon = GetRibbonAtIndex(i);
-        //     if (ribbon == RibbonByteNone)
-        //         continue;
-        //     pk.SetRibbon(ribbon);
-        //     pk.AffixedRibbon = (sbyte)ribbon;
-        // }
-
         SetPINGA(pk, criteria, pi);
         SetMoves(currentLevel, pk, pi);
         pk.HealPP();
@@ -480,6 +478,18 @@ public sealed class WA9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
         if (IsEgg)
             SetEggMetData(pk);
         pk.CurrentFriendship = pk.IsEgg ? pi.HatchCycles : pi.BaseFriendship;
+
+        if (IsHOMEGift)
+        {
+            for (var i = 0; i < RibbonBytesCount; i++)
+            {
+                var ribbon = GetRibbonAtIndex(i);
+                if (ribbon == RibbonByteNone)
+                    continue;
+                pk.SetRibbon(ribbon);
+            }
+            pk.Scale = pk.HeightScalar = pk.WeightScalar = Scale == 256 ? (byte)rnd.Next(256) : (byte)Scale;
+        }
 
         pk.ResetPartyStats();
         pk.RefreshChecksum();
@@ -489,13 +499,12 @@ public sealed class WA9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
     private void SetMoves(byte currentLevel, PA9 pk, PersonalInfo9ZA pi)
     {
         var (learn, plus) = LearnSource9ZA.GetLearnsetAndPlus(Species, Form);
-        if (Move1 == 0) // Just in case they forget to set moves on an event.
-        {
-            Span<ushort> moves = stackalloc ushort[4];
-            learn.SetEncounterMoves(currentLevel, moves);
-            pk.SetMoves(moves);
-        }
-        PlusRecordApplicator.SetPlusFlagsEncounter(pk, pi, plus, currentLevel);
+        pk.SetPlusFlagsEncounter(pi, plus, currentLevel);
+        if (Move1 != 0) // Just in case they forget to set moves on an event.
+            return;
+        Span<ushort> moves = stackalloc ushort[4];
+        learn.SetEncounterMoves(currentLevel, moves);
+        pk.SetMoves(moves);
     }
 
     private DateOnly GetSuggestedDate()
@@ -517,15 +526,34 @@ public sealed class WA9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
 
     private void SetPINGA(PA9 pk, EncounterCriteria criteria, PersonalInfo9ZA pi)
     {
-        var param = GetParams(pi);
-        ulong init = Util.Rand.Rand64();
-        var success = this.TryApply64(pk, init, param, criteria);
-        if (!success && !this.TryApply64(pk, init, param, criteria.WithoutIVs()))
-            this.TryApply64(pk, init, param, EncounterCriteria.Unrestricted);
+        if (IsHOMEGift) // Do not use LumioseRNG for HOME gifts
+        {
+            pk.Nature = pk.StatAlignment = criteria.GetNature((sbyte)Nature == -1 ? Nature.Random : Nature);
+            pk.Gender = criteria.GetGender(Gender, pi);
+            var av = GetAbilityIndex(criteria, AbilityType);
+            pk.RefreshAbility(av);
+            SetPID(pk);
+            SetIVs(pk, criteria);
+        }
+        else
+        {
+            var param = GetParams(pi);
+            ulong init = Util.Rand.Rand64();
+            var success = this.TryApply64(pk, init, param, criteria);
+            if (!success && !this.TryApply64(pk, init, param, criteria.WithoutIVs()))
+                this.TryApply64(pk, init, param, EncounterCriteria.Unrestricted);
 
-        if (PIDType is not (ShinyType8.Never or ShinyType8.Random))
-            pk.PID = GetPID(pk, PIDType);
+            if (PIDType is not (ShinyType8.Never or ShinyType8.Random))
+                pk.PID = GetPID(pk, PIDType);
+        }
     }
+
+    private int GetAbilityIndex(in EncounterCriteria criteria, int type) => type switch
+    {
+        00 or 01 or 02 => type, // Fixed 0/1/2
+        03 or 04 => criteria.GetAbilityFromNumber(Ability), // 0/1 or 0/1/H
+        _ => throw new ArgumentOutOfRangeException(nameof(type)),
+    };
 
     public override AbilityPermission Ability => AbilityType switch
     {
@@ -563,6 +591,20 @@ public sealed class WA9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
         if (tr.IsShiny(pid, 9))
             return pid ^ 0x1000_0000;
         return pid;
+    }
+
+    private void SetPID(PA9 pk)
+    {
+        pk.PID = GetPID(pk, PIDType);
+    }
+
+    private void SetIVs(PA9 pk, in EncounterCriteria criteria)
+    {
+        Span<int> finalIVs = stackalloc int[6];
+        GetIVs(finalIVs);
+        var rng = Util.Rand;
+        ApplyTemplateIVs(finalIVs, criteria, rng, _ => IsHOMEGift ? HomeBaseIV : rng.Next(32)); // HOME ZA-starters gifts have 20 in non-perfect IVs
+        pk.SetIVs(finalIVs);
     }
 
     public override bool IsMatchExact(PKM pk, EvoCriteria evo)
@@ -620,14 +662,14 @@ public sealed class WA9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
         else
         {
             if (!shinyType.IsValid(pk)) return false;
-            if (!IsMatchEggLocation(pk)) return false;
+            if (!IsMatchEggLocationInternal(pk)) return false;
             if (!IsMatchLocation(pk)) return false;
         }
 
         if (MetLevel != 0 && MetLevel != pk.MetLevel) return false;
         if ((Ball == 0 ? 4 : Ball) != pk.Ball) return false;
         if (OTGender < 2 && OTGender != pk.OriginalTrainerGender) return false;
-        if (Nature != Nature.Random && pk.Nature != Nature) return false;
+        if (Nature.IsFixed && pk.Nature != Nature) return false;
         if (Gender != 3 && Gender != pk.Gender) return false;
 
         if (pk is IScaledSize s)
@@ -641,6 +683,37 @@ public sealed class WA9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
         }
         if (pk is IAlphaReadOnly a && a.IsAlpha != IsAlpha)
             return true;
+
+        if (IsHOMEGift)
+        {
+            if (FlawlessIVCount > 0)
+            {
+                if (pk.FlawlessIVCount != FlawlessIVCount)
+                    return false; // HOME ZA-starters have non-perfect IVs to 20, so IVs at 31 can't exceed the flawless count.
+
+                for (var i = 0; i < 6; i++)
+                {
+                    var iv = pk.GetIV(i);
+                    if (iv != 31 && iv != HomeBaseIV)
+                        return false;
+                }
+            }
+            else // All Specified
+            {
+                if (pk.IV_HP != IV_HP)
+                    return false;
+                if (pk.IV_ATK != IV_ATK)
+                    return false;
+                if (pk.IV_DEF != IV_DEF)
+                    return false;
+                if (pk.IV_SPA != IV_SPA)
+                    return false;
+                if (pk.IV_SPD != IV_SPD)
+                    return false;
+                if (pk.IV_SPE != IV_SPE)
+                    return false;
+            }
+        }
 
         // PID Types 0 and 1 do not use the fixed PID value.
         // Values 2,3 are specific shiny states, and 4 is fixed value.
@@ -677,11 +750,11 @@ public sealed class WA9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
 
     protected override bool IsMatchDeferred(PKM pk) => false;
 
-    protected override bool IsMatchPartial(PKM pk) => TryGetSeed(pk, out _) != SeedCorrelationResult.Success;
+    protected override bool IsMatchPartial(PKM pk) => !IsHOMEGift && TryGetSeed(pk, out _) != SeedCorrelationResult.Success;
 
     #region Lazy Ribbon Implementation
 
-    private static bool HasRibbon(RibbonIndex _) => false; // HasRibbon(index); // ZA is hard-coded to never set ribbons, so we need to return false for validation/setting.
+    private bool HasRibbon(RibbonIndex index) => IsHOMEGift && this.GetRibbonIndex(index);
     public bool RibbonEarth { get => HasRibbon(Earth); set => this.SetRibbonIndex(Earth, value); }
     public bool RibbonNational { get => HasRibbon(National); set => this.SetRibbonIndex(National, value); }
     public bool RibbonCountry { get => HasRibbon(Country); set => this.SetRibbonIndex(Country, value); }
@@ -822,7 +895,7 @@ public sealed class WA9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
         foreach (var value in RibbonSpan)
         {
             missing = (RibbonIndex)value;
-            if (!missing.IsEncounterMark8())
+            if (!missing.IsEncounterMark8)
                 continue;
             if (pk is IRibbonSetMark8 m8 && !m8.HasMark8(missing))
                 return true;
@@ -843,7 +916,8 @@ public sealed class WA9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
     {
         const byte rollCount = 1;
         var hp = IV_HP;
-        var ivs = new IndividualValueSet((sbyte)hp, (sbyte)IV_ATK, (sbyte)IV_DEF, (sbyte)IV_SPE, (sbyte)IV_SPA, (sbyte)IV_SPD);
+        var flawless = FlawlessIVCount;
+        var ivs = flawless != 0 ? default : new IndividualValueSet((sbyte)hp, (sbyte)IV_ATK, (sbyte)IV_DEF, (sbyte)IV_SPE, (sbyte)IV_SPA, (sbyte)IV_SPD);
         var sizeType = Scale == 256 ? SizeType9.RANDOM : SizeType9.VALUE;
         var gender = Gender switch
         {
@@ -852,14 +926,14 @@ public sealed class WA9(Memory<byte> raw) : DataMysteryGift(raw), ILangNick, INa
             2 => PersonalInfo.RatioMagicGenderless,
             _ => pi.Gender,
         };
-        return new GenerateParam9a(gender, FlawlessIVCount, rollCount, Correlation, sizeType, (byte)Scale, Nature, Ability, Shiny, ivs);
+        return new GenerateParam9a(gender, flawless, rollCount, Correlation, sizeType, (byte)Scale, Nature, Ability, Shiny, ivs);
     }
 
     private static byte GetFlawlessIVCount(int hp)
     {
-        var tryFlawless = 0xFF - hp;
-        if ((uint)tryFlawless < 6)
-            return (byte)tryFlawless;
+        var tryFlawless = hp - 0xFC;
+        if ((uint)tryFlawless < 3)
+            return (byte)(tryFlawless + 1);
         return 0;
     }
 }

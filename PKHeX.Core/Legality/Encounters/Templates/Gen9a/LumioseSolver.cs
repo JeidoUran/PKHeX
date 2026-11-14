@@ -81,6 +81,12 @@ public static class LumioseSolver
     private static bool TryGetSeedSkip(in GenerateParam9a param, PKM pk, uint ec, uint pid, out ulong seed)
     {
         var solver = new XoroMachineSkip(ec, pid);
+        if (TryGetSeed(param, pk, solver, out seed))
+            return true;
+
+        // Try again assuming the FakeTrainer XORed the resulting PID to be anti-shiny (terrible luck for the player).
+        pid = LumioseRNG.AntiShiny(pid);
+        solver = new XoroMachineSkip(ec, pid);
         return TryGetSeed(param, pk, solver, out seed);
     }
 
@@ -218,9 +224,7 @@ public static class LumioseSolver
         {
             if (Volatile.Read(ref found)) { state.Stop(); return; }
 
-            uint start = (uint)range.start;
-            uint endExclusive = (uint)range.end; // safe due to batching within 0..2^32
-
+            var (start, endExclusive) = range; // keep as ulong, can't overflow since endExclusive is at most 2^32
             for (ulong high = start; high < endExclusive; high++)
             {
                 if (Volatile.Read(ref found)) { state.Stop(); return; }

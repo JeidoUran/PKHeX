@@ -21,7 +21,7 @@ public static class LegalityFormatting
     public static string Report(this LegalityAnalysis la, bool verbose = false)
     {
         var localizer = LegalityLocalizationContext.Create(la);
-        return Report(localizer, verbose);
+        return localizer.Report(verbose);
     }
 
     /// <inheritdoc cref="Report(LegalityAnalysis, bool)"/>
@@ -66,7 +66,7 @@ public static class LegalityFormatting
         }
     }
 
-    public static void AddMoves(LegalityLocalizationContext la, ReadOnlySpan<MoveResult> moves, List<string> lines, in byte currentFormat, bool state)
+    public static void AddMoves(LegalityLocalizationContext la, ReadOnlySpan<MoveResult> moves, List<string> lines, in EntityContext currentFormat, bool state)
     {
         for (int i = 0; i < moves.Length; i++)
         {
@@ -215,7 +215,7 @@ public static class LegalityFormatting
         var pk = info.Entity;
         var result = PokewalkerRNG.GetLeastEffortSeed((uint)pk.IV_HP, (uint)pk.IV_ATK, (uint)pk.IV_DEF, (uint)pk.IV_SPA, (uint)pk.IV_SPD, (uint)pk.IV_SPE);
         var line = string.Format(strings.Encounter.Format, strings.Encounter.OriginSeed, result.Seed.ToString("X8"));
-        line += $" [{result.Type} @ {result.PriorPoke}]";
+        line += $" [{result.Type} @ {result.Count}]";
         return line;
     }
 

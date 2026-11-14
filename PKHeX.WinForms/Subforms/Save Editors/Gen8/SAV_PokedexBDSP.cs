@@ -33,7 +33,6 @@ public partial class SAV_PokedexBDSP : Form
 
         editing = false;
         LB_Species.SelectedIndex = 0;
-        CB_Species.KeyDown += WinFormsUtil.RemoveDropCB;
         CHK_National.Checked = Zukan.HasNationalDex;
     }
 
@@ -69,7 +68,6 @@ public partial class SAV_PokedexBDSP : Form
 
     private void GetEntry()
     {
-        // Load Bools for the data
         CB_State.SelectedIndex = (int)Zukan.GetState(species);
         Zukan.GetGenderFlags(species, out var m, out var f, out var ms, out var fs);
         CHK_M.Checked = m;
@@ -182,7 +180,7 @@ public partial class SAV_PokedexBDSP : Form
             Zukan.CompleteDex(ModifierKeys == Keys.Control);
 
         GetEntry();
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private void ModifyAllForms(object sender, EventArgs e)

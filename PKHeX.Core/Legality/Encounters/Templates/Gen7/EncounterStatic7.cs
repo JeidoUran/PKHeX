@@ -4,7 +4,7 @@ namespace PKHeX.Core;
 /// Generation 7 Static Encounter
 /// </summary>
 public sealed record EncounterStatic7(GameVersion Version)
-    : IEncounterable, IEncounterMatch, IEncounterConvertible<PK7>, IRelearn, IEncounterFormRandom, IFlawlessIVCount, IFatefulEncounterReadOnly, IFixedGender, IFixedNature, IFixedIVSet
+    : IEncounterable, IEncounterMatch, IEncounterConvertible<PK7>, IRelearn, IMoveset, IEncounterFormRandom, IFlawlessIVCount, IFatefulEncounterReadOnly, IFixedGender, IFixedNature, IFixedIVSet
 {
     public byte Generation => 7;
     public EntityContext Context => EntityContext.Gen7;
@@ -16,6 +16,7 @@ public sealed record EncounterStatic7(GameVersion Version)
     public bool IsShiny => false;
 
     public Moveset Relearn { get; init; }
+    public Moveset Moves => Relearn;
     public IndividualValueSet IVs { get; init; }
     public ushort Location { get; init; }
     public ushort EggLocation { get; init; }
@@ -95,8 +96,14 @@ public sealed record EncounterStatic7(GameVersion Version)
         }
 
         if (Relearn.HasMoves)
+        {
+            pk.SetMoves(Relearn);
             pk.SetRelearnMoves(Relearn);
-        EncounterUtil.SetEncounterMoves(pk, version, LevelMin);
+        }
+        else
+        {
+            EncounterUtil.SetEncounterMoves(pk, version, LevelMin);
+        }
         SetPINGA(pk, criteria, pi);
         pk.ResetPartyStats();
 
@@ -133,7 +140,7 @@ public sealed record EncounterStatic7(GameVersion Version)
 
     public bool IsMatchExact(PKM pk, EvoCriteria evo)
     {
-        if (!IsMatchEggLocation(pk))
+        if (!IsMatchEggLocationInternal(pk))
             return false;
         if (!IsMatchLocation(pk))
             return false;
@@ -145,7 +152,7 @@ public sealed record EncounterStatic7(GameVersion Version)
             return false;
         if (IVs.IsSpecified && !Legal.GetIsFixedIVSequenceValidSkipRand(IVs, pk))
             return false;
-        if (Nature != Nature.Random && pk.Nature != Nature)
+        if (Nature.IsFixed && pk.Nature != Nature)
             return false;
         if (FlawlessIVCount != 0 && pk.FlawlessIVCount < FlawlessIVCount)
             return false;
@@ -161,19 +168,18 @@ public sealed record EncounterStatic7(GameVersion Version)
 
     private bool IsMatchLocation(PKM pk)
     {
-        if (IsEgg)
+        var met = pk.MetLocation;
+        if (met == Location)
             return true;
-
-        return pk.MetLocation == Location;
+        if (IsEgg)
+            return !pk.IsEgg || met == Locations.LinkTrade6;
+        return false;
     }
 
-    private bool IsMatchEggLocation(PKM pk)
+    private bool IsMatchEggLocationInternal(PKM pk)
     {
         if (!IsEgg)
-        {
-            var expect = pk is PB8 ? Locations.Default8bNone : EggLocation;
-            return pk.EggLocation == expect;
-        }
+            return this.IsMatchEggLocation(pk);
 
         // Gift Eevee edge case
         if (EggLocation == Locations.Daycare5 && !Relearn.HasMoves && pk.RelearnMove1 != 0)
@@ -184,11 +190,7 @@ public sealed record EncounterStatic7(GameVersion Version)
             return eggLoc == EggLocation || eggLoc == Locations.LinkTrade6;
 
         // Unhatched:
-        if (eggLoc != EggLocation)
-            return false;
-        if (pk.MetLocation is not (0 or Locations.LinkTrade6))
-            return false;
-        return true;
+        return eggLoc == EggLocation;
     }
 
     private bool IsMatchForm(PKM pk, EvoCriteria evo)

@@ -9,7 +9,7 @@ Supporta i seguenti tipi di file:
 * File di Memory Card GameCube (\*.raw, \*.bin) contenenti File di Salvataggio Pokémon.
 * File di Entità Pokémon individuali (.pk\*, \*.ck3, \*.xk3, \*.pb7, \*.sk2, \*.bk4, \*.rk4)
 * File di Dono Segreto (\*.pgt, \*.pcd, \*.pgf, .wc\*) inclusa conversione in .pk\*
-* Importazione di Entità del Go Park (\*.gp1) inclusa conversione in .pb7
+* Importazione di Entità del GO Park (\*.gp1) inclusa conversione in .pb7
 * Importazione di squadre da Video Lotta del 3DS decriptati
 * Trasferimento da una generazione all'altra, convertendo i formati propriamente.
 
@@ -28,9 +28,9 @@ PKHeX si aspetta file di salvataggio non criptati con le chiavi specifiche della
 
 ## Building
 
-PKHeX è un applicazione Windows Form che necessita del [.NET Desktop Runtime 9.0](https://dotnet.microsoft.com/download/dotnet/9.0).
+PKHeX è un applicazione Windows Form che necessita del [.NET Desktop Runtime 10.0](https://dotnet.microsoft.com/download/dotnet/10.0).
 
-L'eseguibile può essere compilato con qualsiasi compiler che supporti C# 13.
+L'eseguibile può essere compilato con qualsiasi compiler che supporti C# 14.
 
 ### Configurazioni di Build
 

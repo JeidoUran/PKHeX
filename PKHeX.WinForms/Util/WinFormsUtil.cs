@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Media;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -17,28 +18,44 @@ namespace PKHeX.WinForms;
 
 public static class WinFormsUtil
 {
-    internal static void TranslateInterface(Control form, string lang) => form.TranslateInterface(lang);
+    internal static bool Quiet { get; set; }
 
-    /// <summary>
-    /// Centers the <see cref="child"/> horizontally and vertically so that its center is the same as the <see cref="parent"/>'s center.
-    /// </summary>
-    internal static void CenterToForm(this Control child, Control? parent)
+    private static void Sound(SystemSound sound)
     {
-        if (parent is null)
-            return;
-        int x = parent.Location.X + ((parent.Width - child.Width) / 2);
-        int y = parent.Location.Y + ((parent.Height - child.Height) / 2);
-        child.Location = new Point(x, y);
+        if (!Quiet)
+            sound.Play();
     }
 
-    /// <summary>
-    /// Horizontally centers the <see cref="child"/> to the <see cref="parent"/>'s horizontal center.
-    /// </summary>
-    internal static void HorizontallyCenter(this Control child, Control parent)
+    internal static void Asterisk() => Sound(SystemSounds.Asterisk);
+    internal static void Hand() => Sound(SystemSounds.Hand);
+    internal static void Exclamation() => Sound(SystemSounds.Exclamation);
+    internal static void Question() => Sound(SystemSounds.Question);
+
+    internal static void TranslateInterface(Control form, string lang) => form.TranslateInterface(lang);
+
+    extension(Control child)
     {
-        int midpoint = (parent.Width - child.Width) / 2;
-        if (child.Location.X != midpoint)
-            child.SetBounds(midpoint, 0, 0, 0, BoundsSpecified.X);
+        /// <summary>
+        /// Centers the <see cref="child"/> horizontally and vertically so that its center is the same as the <see cref="parent"/>'s center.
+        /// </summary>
+        internal void CenterToForm(Control? parent)
+        {
+            if (parent is null)
+                return;
+            int x = parent.Location.X + ((parent.Width - child.Width) / 2);
+            int y = parent.Location.Y + ((parent.Height - child.Height) / 2);
+            child.Location = new Point(x, y);
+        }
+
+        /// <summary>
+        /// Horizontally centers the <see cref="child"/> to the <see cref="parent"/>'s horizontal center.
+        /// </summary>
+        internal void HorizontallyCenter(Control parent)
+        {
+            int midpoint = (parent.Width - child.Width) / 2;
+            if (child.Location.X != midpoint)
+                child.SetBounds(midpoint, 0, 0, 0, BoundsSpecified.X);
+        }
     }
 
     public static T? FirstFormOfType<T>() where T : Form => Application.OpenForms.OfType<T>().FirstOrDefault();
@@ -114,7 +131,7 @@ public static class WinFormsUtil
     /// <returns>The <see cref="DialogResult"/> associated with the dialog.</returns>
     internal static DialogResult Error(string friendlyMessage, Exception exception)
     {
-        System.Media.SystemSounds.Exclamation.Play();
+        Exclamation();
         return ErrorWindow.ShowErrorDialog(friendlyMessage, exception, true);
     }
 
@@ -125,24 +142,21 @@ public static class WinFormsUtil
     /// <returns>The <see cref="DialogResult"/> associated with the dialog.</returns>
     internal static DialogResult Error(params ReadOnlySpan<string?> lines)
     {
-        System.Media.SystemSounds.Hand.Play();
+        Hand();
         string msg = string.Join(Environment.NewLine + Environment.NewLine, lines);
         return MessageBox.Show(msg, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
 
-    internal static DialogResult Alert(params ReadOnlySpan<string?> lines) => Alert(true, lines);
-
-    internal static DialogResult Alert(bool sound, params ReadOnlySpan<string?> lines)
+    internal static DialogResult Alert(params ReadOnlySpan<string?> lines)
     {
-        if (sound)
-            System.Media.SystemSounds.Asterisk.Play();
+        Asterisk();
         string msg = string.Join(Environment.NewLine + Environment.NewLine, lines);
-        return MessageBox.Show(msg, "Alert", MessageBoxButtons.OK, sound ? MessageBoxIcon.Information : MessageBoxIcon.None);
+        return MessageBox.Show(msg, "Alert", MessageBoxButtons.OK, Quiet ? MessageBoxIcon.None : MessageBoxIcon.Information);
     }
 
     internal static DialogResult Prompt(MessageBoxButtons btn, params ReadOnlySpan<string?> lines)
     {
-        System.Media.SystemSounds.Asterisk.Play();
+        Asterisk();
         string msg = string.Join(Environment.NewLine + Environment.NewLine, lines);
         return MessageBox.Show(msg, "Prompt", btn, MessageBoxIcon.Question);
     }
@@ -202,6 +216,8 @@ public static class WinFormsUtil
     /// <param name="control">Control to initialize binding</param>
     public static void InitializeBinding(this ListControl control)
     {
+        if (control is ComboBox { AutoCompleteMode: AutoCompleteMode.Suggest or AutoCompleteMode.SuggestAppend } cb)
+            cb.KeyDown += RemoveDropCB;
         control.DisplayMember = nameof(ComboItem.Text);
         control.ValueMember = nameof(ComboItem.Value);
     }
@@ -213,16 +229,13 @@ public static class WinFormsUtil
         control.ValueMember = nameof(ComboItem.Value);
     }
 
-    public static void SetValueClamped(this NumericUpDown nud, int value) => nud.Value = Math.Clamp(value, nud.Minimum, nud.Maximum);
-    public static void SetValueClamped(this NumericUpDown nud, uint value) => nud.Value = Math.Clamp(value, nud.Minimum, nud.Maximum);
-
-    public static void RemoveDropCB(object? sender, KeyEventArgs e)
+    extension(NumericUpDown nud)
     {
-        if (sender is null)
-            return;
-        ((ComboBox)sender).DroppedDown = false;
+        public void SetValueClamped(int value) => nud.Value = Math.Clamp(value, nud.Minimum, nud.Maximum);
+        public void SetValueClamped(uint value) => nud.Value = Math.Clamp(value, nud.Minimum, nud.Maximum);
     }
 
+    private static void RemoveDropCB(object? sender, KeyEventArgs e) => (sender as ComboBox)?.DroppedDown = false;
     public static void MouseWheelIncrement1(object? sender, MouseEventArgs e) => Adjust(sender, e, 1);
     public static void MouseWheelIncrement4(object? sender, MouseEventArgs e) => Adjust(sender, e, 4);
 
@@ -243,7 +256,6 @@ public static class WinFormsUtil
     /// Iterates the Control's child controls recursively to obtain all controls of the specified type.
     /// </summary>
     /// <typeparam name="T">Type of control</typeparam>
-    /// <param name="control"></param>
     /// <returns>All children and sub-children contained by <see cref="control"/>.</returns>
     public static IEnumerable<Control> GetAllControlsOfType<T>(Control control) where T : Control
     {
@@ -326,7 +338,7 @@ public static class WinFormsUtil
         {
             try
             {
-                var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                 var sav = SaveFinder.FindMostRecentSaveFile(cts.Token);
                 return sav?.Metadata.FilePath;
             }
@@ -366,7 +378,11 @@ public static class WinFormsUtil
     {
         SaveBackup(path);
         var ext = Path.GetExtension(path);
-        var data = ext == $".{pkx}" ? pk.DecryptedPartyData : pk.EncryptedPartyData;
+        Span<byte> data = stackalloc byte[pk.SIZE_PARTY];
+        if (ext == $".{pkx}")
+            pk.WriteDecryptedDataParty(data);
+        else
+            pk.WriteEncryptedDataParty(data);
         File.WriteAllBytes(path, data);
     }
 
@@ -384,11 +400,27 @@ public static class WinFormsUtil
     /// <summary>
     /// Opens a dialog to save a <see cref="SaveFile"/> file.
     /// </summary>
+    /// <param name="c">Control to anchor dialog to.</param>
     /// <param name="sav"><see cref="SaveFile"/> to be saved.</param>
     /// <param name="currentBox">Box the player will be greeted with when accessing the PC in-game.</param>
+    /// <param name="forceSaveAs">Whether to force the Save As dialog even if the file exists.</param>
     /// <returns>True if the file was saved.</returns>
-    public static bool ExportSAVDialog(SaveFile sav, int currentBox = 0)
+    public static bool ExportSAVDialog(Control c, SaveFile sav, int currentBox = 0, bool forceSaveAs = false)
     {
+        // Try to request an overwrite first; if they defer, do the save file dialog.
+        if (!forceSaveAs && !sav.Metadata.IsBackup && File.Exists(sav.Metadata.FilePath))
+        {
+            var exist = sav.Metadata.FilePath;
+            var task = c.FindForm()!.RequestOverwrite(exist);
+            if (task == DialogResult.Cancel)
+                return false;
+            if (task == DialogResult.Yes)
+            {
+                ExportSAV(sav, exist);
+                return true;
+            }
+        }
+
         using var sfd = new SaveFileDialog();
         sfd.Filter = sav.Metadata.Filter;
         sfd.FileName = sav.Metadata.FileName;
@@ -488,6 +520,7 @@ public static class WinFormsUtil
         EntityContext.Gen7b => "Beluga Gift Record|*.wr7" + all,
         EntityContext.Gen8b => "BD/SP Gift|*.wb8" + all,
         EntityContext.Gen8a => "Legends: Arceus Gift|*.wa8" + all,
+        EntityContext.Gen9a => "Legends: Z-A Gift|*.wa9" + all,
         _ => string.Empty,
     };
 
@@ -538,4 +571,29 @@ public static class WinFormsUtil
         var ci = new CultureInfo(lang);
         Thread.CurrentThread.CurrentCulture = Thread.CurrentThread.CurrentUICulture = ci;
     }
+
+    public static void InvertToolStripIcons(ToolStripItemCollection collection)
+    {
+        foreach (var o in collection)
+        {
+            if (o is not ToolStripMenuItem item)
+                continue;
+            InvertToolStripIcons(item.DropDownItems);
+            if (item.Image is not Bitmap x)
+                continue;
+            item.Image = BlackToWhite(x);
+        }
+    }
+
+    public static Bitmap BlackToWhite(Bitmap bmp) => Drawing.ImageUtil.CopyChangeAllColorTo(bmp, Color.White);
+
+    // SystemColor equivalents for dark mode support
+    public static Color ColorWarn => Application.IsDarkModeEnabled ? Color.OrangeRed : Color.Red;
+    public static Color ColorValid => Application.IsDarkModeEnabled ? Color.FromArgb(030, 070, 030) : Color.FromArgb(200, 255, 200);
+    public static Color ColorHint => Application.IsDarkModeEnabled ? Color.DarkKhaki : Color.LightYellow;
+    public static Color ColorSuspect => Application.IsDarkModeEnabled ? Color.LightCoral : Color.LightSalmon;
+    public static Color ColorAccept => Application.IsDarkModeEnabled ? Color.DarkSlateBlue : Color.LightBlue;
+    public static Color ColorPlus => Application.IsDarkModeEnabled ? Color.OrangeRed : Color.Red;
+    public static Color ColorMinus => Application.IsDarkModeEnabled ? Color.MediumBlue : Color.Blue;
+    public static Color ColorAlternate => Application.IsDarkModeEnabled ? Color.SlateGray : Color.SeaShell;
 }

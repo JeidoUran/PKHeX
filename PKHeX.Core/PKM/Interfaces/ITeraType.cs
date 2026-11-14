@@ -109,29 +109,30 @@ public static class TeraTypeUtil
         return Fallback; // out of range.
     }
 
-    /// <summary>
-    /// Applies a new Tera Type value to the entity.
-    /// </summary>
-    /// <param name="t">Entity to set the value to.</param>
-    /// <param name="type">Value to update with.</param>
-    public static void SetTeraType(this ITeraType t, MoveType type)
+    extension(ITeraType t)
     {
-        if ((byte)type > Stellar)
-            type = Fallback;
+        /// <summary>
+        /// Applies a new Tera Type value to the entity.
+        /// </summary>
+        /// <param name="type">Value to update with.</param>
+        public void SetTeraType(MoveType type)
+        {
+            if ((byte)type > Stellar)
+                type = Fallback;
 
-        var original = t.TeraTypeOriginal;
-        if (original == type)
-            t.TeraTypeOverride = (MoveType)OverrideNone;
-        else
-            t.TeraTypeOverride = type;
+            var original = t.TeraTypeOriginal;
+            if (original == type)
+                t.TeraTypeOverride = (MoveType)OverrideNone;
+            else
+                t.TeraTypeOverride = type;
+        }
+
+        /// <summary>
+        /// Applies a new Tera Type value to the entity.
+        /// </summary>
+        /// <param name="type">Value to update with.</param>
+        public void SetTeraType(byte type) => t.SetTeraType((MoveType)type);
     }
-
-    /// <summary>
-    /// Applies a new Tera Type value to the entity.
-    /// </summary>
-    /// <param name="t">Entity to set the value to.</param>
-    /// <param name="type">Value to update with.</param>
-    public static void SetTeraType(this ITeraType t, byte type) => t.SetTeraType((MoveType)type);
 
     /// <summary>
     /// Gets the preferred Tera Type to set for the given <see cref="IPersonalType"/>.
@@ -152,6 +153,7 @@ public static class TeraTypeUtil
         pk.TeraTypeOverride = enc is not ITeraType x ? (MoveType)OverrideNone : x.TeraTypeOverride; // WC9
         pk.TeraTypeOriginal = enc switch
         {
+            { Context: not EntityContext.Gen9 } => (pk.TeraTypeOverride = (MoveType)pk.PersonalInfo.Type1), // Treat as HOME transferred
             ITeraTypeReadOnly t => t.TeraType,
             ITeraRaid9 t9 => (MoveType)Tera9RNG.GetTeraType(Tera9RNG.GetOriginalSeed(pk), t9.TeraType, enc.Species, enc.Form),
             _ => (MoveType)Tera9RNG.GetTeraTypeFromPersonal(enc.Species, enc.Form, Util.Rand.Rand64()),

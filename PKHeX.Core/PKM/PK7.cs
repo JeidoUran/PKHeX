@@ -23,7 +23,7 @@ public sealed class PK7 : G6PKM, IRibbonSetEvent3, IRibbonSetEvent4, IRibbonSetC
 
     private static Memory<byte> DecryptParty(Memory<byte> data)
     {
-        PokeCrypto.DecryptIfEncrypted67(ref data);
+        PokeCrypto.DecryptIfEncrypted67(data.Span);
         if (data.Length >= PokeCrypto.SIZE_6PARTY)
             return data;
 
@@ -488,7 +488,7 @@ public sealed class PK7 : G6PKM, IRibbonSetEvent3, IRibbonSetEvent4, IRibbonSetC
         // No geolocations are set in-game -- except for bank transfers. Don't emulate bank transfers
         // this.TradeGeoLocation(tr.Country, tr.SubRegion);
 
-        Span<char> ht = stackalloc char[TrashCharCountTrainer];
+        Span<char> ht = stackalloc char[TrashCharCountHandler];
         var len = LoadString(HandlingTrainerTrash, ht);
         ht = ht[..len];
 
@@ -547,6 +547,25 @@ public sealed class PK7 : G6PKM, IRibbonSetEvent3, IRibbonSetEvent4, IRibbonSetC
                 PID ^= 0x1000_0000;
                 break;
         }
+    }
+
+    /// <summary>
+    /// Resets the PP of moves to match Transporter's initial values.
+    /// </summary>
+    public void SetVirtualConsoleTransferPP(LanguageID language)
+    {
+        if (!VirtualConsolePP.IsSupportedLanguage(language))
+            return;
+
+        var arr = VirtualConsolePP.GetTable(language);
+        if (VirtualConsolePP.IsGlitched(Move1, arr, out var pp))
+            Move1_PP = pp;
+        if (VirtualConsolePP.IsGlitched(Move2, arr, out pp))
+            Move2_PP = pp;
+        if (VirtualConsolePP.IsGlitched(Move3, arr, out pp))
+            Move3_PP = pp;
+        if (VirtualConsolePP.IsGlitched(Move4, arr, out pp))
+            Move4_PP = pp;
     }
 
     public override string GetString(ReadOnlySpan<byte> data)

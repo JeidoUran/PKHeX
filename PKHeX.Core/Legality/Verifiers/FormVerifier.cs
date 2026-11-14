@@ -43,15 +43,7 @@ public sealed class FormVerifier : Verifier
         switch ((Species)species)
         {
             case Pikachu when enc.Generation == 6: // Cosplay
-                if (enc is not EncounterStatic6 s6)
-                {
-                    if (form == 0)
-                        break; // Regular Pikachu, OK.
-                    return GetInvalid(FormPikachuCosplay);
-                }
-                if (form != s6.Form)
-                    return GetInvalid(FormPikachuCosplayInvalid);
-                if (pk.Format != 6)
+                if (form != 0 && pk.Format != 6) // Regular Pikachu, OK.
                     return GetInvalid(TransferBad); // Can't transfer.
                 break;
 
@@ -59,16 +51,6 @@ public sealed class FormVerifier : Verifier
             case Pikachu when form is not 0 && ParseSettings.ActiveTrainer is SAV7b {Version:GameVersion.GE}:
             case Eevee when form is not 0 && ParseSettings.ActiveTrainer is SAV7b {Version:GameVersion.GP}:
                 return GetInvalid(FormBattle);
-
-            case Pikachu when enc.Generation >= 7: // Cap
-                var expectForm = enc is EncounterInvalid or IEncounterEgg ? 0 : enc.Form;
-                if (form != expectForm)
-                {
-                    bool gift = enc is MysteryGift g && g.Form != form;
-                    var msg = gift ? FormPikachuEventInvalid : FormInvalidGame;
-                    return GetInvalid(msg);
-                }
-                break;
 
             case Unown when enc.Generation == 2 && form >= 26:
                 return GetInvalid(FormInvalidRangeLEQ_0F, 25);
@@ -101,22 +83,27 @@ public sealed class FormVerifier : Verifier
             case Genesect:
                 var genesect = FormItem.GetFormGenesect(pk.HeldItem);
                 return genesect != form ? GetInvalid(FormItemInvalid) : GetValid(FormItemMatches);
-            case Greninja:
-                if (form > 1) // Ash Battle Bond active
-                    return GetInvalid(FormBattle);
-                if (form != 0 && enc is not MysteryGift) // Form can not be bred for, MysteryGift already checked
-                    return GetInvalid(FormInvalidRangeLEQ_0F, 0);
-                break;
+
+            case Furfrou when pk.Context == EntityContext.Gen6 && form != 0 && !data.IsStoredSlot(StorageSlotType.Party):
+                return GetInvalid(FormParty);
 
             case Scatterbug or Spewpa or Vivillon when enc.Context is EntityContext.Gen9:
-                if (form > 18 && enc.Form != form) // Pokéball
+                // Wild encounters are all Fancy pattern in S/V; when a postcard from GO is sent, can be any of the X/Y forms.
+                if (form > Vivillon3DS.FancyFormID && enc.Form != form) // Pokéball
                     return GetInvalid(FormVivillonEventPre);
-                if (form != 18 && enc is IEncounterEgg) // Fancy
+                // Bred entities are still always fancy.
+                if (enc is EncounterEgg9 && form != Vivillon3DS.FancyFormID) // Fancy
                     return GetInvalid(FormVivillonNonNative);
                 break;
-            case Scatterbug or Spewpa:
+            case Scatterbug or Spewpa or Vivillon:
+                // Random form encounters, depending on geolocation of the user (lost on transfer from 3DS to Nintendo Switch).
                 if (form > Vivillon3DS.MaxWildFormID) // Fancy & Pokéball
-                    return GetInvalid(FormVivillonEventPre);
+                {
+                    // Mystery gifts are already exact-matched to form ID.
+                    if (enc is { Form: not EncounterUtil.FormVivillon })
+                        return GetValid(FormVivillon);
+                    return GetInvalid(FormVivillonInvalid);
+                }
                 if (pk is not IRegionOrigin tr)
                     break;
                 if (!Vivillon3DS.IsPatternValid(form, tr.ConsoleRegion))
@@ -124,26 +111,8 @@ public sealed class FormVerifier : Verifier
                 if (!Vivillon3DS.IsPatternNative(form, tr.Country, tr.Region))
                     data.AddLine(Get(Severity.Fishy, FormVivillonNonNative));
                 break;
-            case Vivillon:
-                if (form > Vivillon3DS.MaxWildFormID) // Fancy & Pokéball
-                {
-                    if (enc is not MysteryGift)
-                        return GetInvalid(FormVivillonInvalid);
-                    return GetValid(FormVivillon);
-                }
-                if (pk is not IRegionOrigin trv)
-                    break;
-                if (!Vivillon3DS.IsPatternValid(form, trv.ConsoleRegion))
-                    return GetInvalid(FormVivillonInvalid);
-                if (!Vivillon3DS.IsPatternNative(form, trv.Country, trv.Region))
-                    data.AddLine(Get(Severity.Fishy, FormVivillonNonNative));
-                break;
 
-            case Floette when form == 5: // Eternal Flower Floette - not released until Pokémon Legends: Z-A
-                if (enc is not EncounterGift9a)
-                    return GetInvalid(FormEternalInvalid);
-                return GetValid(FormEternal);
-            case Meowstic when form != pk.Gender:
+            case Meowstic when (form & 1) != pk.Gender:
                 return GetInvalid(GenderInvalidNone);
 
             case Silvally:
@@ -196,10 +165,17 @@ public sealed class FormVerifier : Verifier
             return GetInvalid(FormBattle); // Should have reverted to base form when stored.
 
         // Battle forms can exist in Party.
-        if (!FormInfo.IsMegaForm(species, form))
-            return VALID;
+        if (!FormInfo.IsMegaForm(species, form) && !FormInfo.IsPrimalForm(species, form))
+        {
+            // Morpeko-1 can exist in party, but only if it's at a level where it can know the move Aura Wheel; only learns starting at Lv. 57.
+            // You can use move menu to forget Aura Wheel while it's in Hangry Mode, but the form doesn't revert, kinda like Mega Rayquaza with Dragon Ascent
+            if (species is (int)Morpeko && !MemoryPermissions.GetCanKnowMove(data.EncounterMatch, (ushort)Move.AuraWheel, data.Info.EvoChainsAllGens, data.Entity, LearnGroupUtil.GetCurrentGroup(data.Entity)))
+                return GetInvalid(FormInvalidExpect_0, 0);
 
-        var megaStone = ItemStorage9ZA.GetExpectedMegaStone(species, form);
+            return VALID;
+        }
+
+        var megaStone = ItemStorage9ZA.GetExpectedMegaStoneOrPrimalOrb(species, form);
         if (megaStone == 0 || data.Entity.HeldItem == megaStone)
             return VALID;
 

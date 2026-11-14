@@ -1,4 +1,4 @@
-﻿
+
 Sapphire
 Ruby
 Emerald
@@ -51,3 +51,8 @@ Shining Pearl
 Scarlet
 Violet
 Legends: Z-A
+Champions
+Winds
+Waves
+FireRed [NX]
+LeafGreen [NX]

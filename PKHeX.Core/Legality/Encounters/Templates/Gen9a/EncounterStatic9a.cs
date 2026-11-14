@@ -17,7 +17,7 @@ public sealed record EncounterStatic9a(ushort Species, byte Form, byte Level, by
     public AbilityPermission Ability => Any12;
     public Ball FixedBall => Ball.None;
     public bool IsShiny => false;
-    public ushort EggLocation => 0;
+    ushort ILocation.EggLocation => 0;
     public byte FlawlessIVCount { get; init; }
     public byte LevelMin => Level;
     public byte LevelMax => Level;
@@ -28,12 +28,15 @@ public sealed record EncounterStatic9a(ushort Species, byte Form, byte Level, by
     public Moveset Moves { get; init; }
     public IndividualValueSet IVs { get; init; }
     public Nature Nature { get; init; } = Nature.Random;
-    public required byte Location { get; init; }
+    public required ushort Location { get; init; }
     public byte Gender { get; init; } = FixedGenderUtil.GenderRandom;
     public Shiny Shiny { get; init; } = Shiny.Never;
     public bool IsAlpha { get; init; }
 
     ushort ILocation.Location => Location;
+
+    private bool IsHyperspace => Location == EncounterArea9a.LocationHyperspace;
+    private bool IsHyperspaceShinyPossible => Shiny != Shiny.Never && IsHyperspace;
 
     public string Name => "Static Encounter";
     public string LongName => Name;
@@ -82,7 +85,8 @@ public sealed record EncounterStatic9a(ushort Species, byte Form, byte Level, by
         if (IVs.IsSpecified || Correlation is LumioseCorrelation.ReApplyIVs)
             generate = criteria.WithoutIVs();
 
-        var param = GetParams(pi);
+        bool shinyPlease = criteria.Shiny.IsShiny();
+        var param = GetParams(pi, shinyPlease, shinyPlease);
         ulong init = Util.Rand.Rand64();
         var success = this.TryApply64(pk, init, param, generate);
         if (!success && !this.TryApply64(pk, init, param, generate.WithoutIVs()))
@@ -97,25 +101,17 @@ public sealed record EncounterStatic9a(ushort Species, byte Form, byte Level, by
     private void SetMoves(PA9 pk, PersonalInfo9ZA pi, byte level)
     {
         var (learn, plus) = LearnSource9ZA.GetLearnsetAndPlus(Species, Form);
-        Span<ushort> moves = stackalloc ushort[4];
+        pk.SetPlusFlagsEncounter(pi, plus, level);
         if (Moves.HasMoves)
         {
             pk.SetMoves(Moves);
-            pk.GetMoves(moves);
-            PlusRecordApplicator.SetPlusFlagsEncounter(pk, pi, plus, level);
             return;
         }
 
-        if (!IsAlpha)
-        {
-            learn.SetEncounterMoves(level, moves);
-            PlusRecordApplicator.SetPlusFlagsEncounter(pk, pi, plus, level);
-        }
-        else
-        {
-            learn.SetEncounterMovesBackwards(level, moves, sameDescend: false);
-            PlusRecordApplicator.SetPlusFlagsEncounter(pk, pi, plus, level, moves[0] = pi.AlphaMove);
-        }
+        Span<ushort> moves = stackalloc ushort[4];
+        learn.SetEncounterMovesBackwards(level, moves, sameDescend: false);
+        if (pk.IsAlpha)
+            pk.SetPlusFlagsSpecific(pi, moves[0] = pi.AlphaMove);
         pk.SetMoves(moves);
     }
 
@@ -129,7 +125,7 @@ public sealed record EncounterStatic9a(ushort Species, byte Form, byte Level, by
             return false;
         if (Gender != FixedGenderUtil.GenderRandom && pk.Gender != Gender)
             return false;
-        if (!IsMatchEggLocation(pk))
+        if (!this.IsMatchEggLocation(pk))
             return false;
         if (!IsMatchLocation(pk))
             return false;
@@ -139,7 +135,7 @@ public sealed record EncounterStatic9a(ushort Species, byte Form, byte Level, by
             return false;
         if (FlawlessIVCount != 0 && pk.FlawlessIVCount < FlawlessIVCount)
             return false;
-        if (Nature != Nature.Random && pk.Nature != Nature)
+        if (Nature.IsFixed && pk.Nature != Nature)
             return false;
         if (pk is IAlphaReadOnly a && a.IsAlpha != IsAlpha)
             return false;
@@ -147,8 +143,15 @@ public sealed record EncounterStatic9a(ushort Species, byte Form, byte Level, by
         return true;
     }
 
-    private bool IsMatchEggLocation(PKM pk) => pk.EggLocation == EggLocation;
-    private bool IsMatchLocation(PKM pk) => pk.MetLocation == Location;
+    private bool IsMatchLocation(PKM pk)
+    {
+        var loc = pk.MetLocation;
+        if (loc == Location)
+            return true;
+        if (Species is (ushort)Core.Species.Meltan && loc == 00070) // Rouge Sector 1
+            return true; // crossover (depends on player location)
+        return false;
+    }
 
     public EncounterMatchRating GetMatchRating(PKM pk)
     {
@@ -166,8 +169,10 @@ public sealed record EncounterStatic9a(ushort Species, byte Form, byte Level, by
             return EncounterMatchRating.DeferredErrors;
 
         var pidiv = TryGetSeed(pk, out _);
-        if (pidiv is not SeedCorrelationResult.Success)
+        if (pidiv is SeedCorrelationResult.Invalid)
             return EncounterMatchRating.DeferredErrors;
+        if (pidiv is SeedCorrelationResult.Ignore)
+            return EncounterMatchRating.Deferred; // might be a better match with another template
 
         return EncounterMatchRating.Match;
     }
@@ -191,7 +196,18 @@ public sealed record EncounterStatic9a(ushort Species, byte Form, byte Level, by
 
     public SeedCorrelationResult TryGetSeed(PKM pk, out ulong seed)
     {
-        if (GetParams(PersonalTable.ZA[Species, Form]).TryGetSeed(pk, out seed))
+        // Try with 1 shiny roll, since all encounters besides the hyperspace sublegends are.
+        var param = GetParams(PersonalTable.ZA[Species, Form]);
+        if (param.TryGetSeed(pk, out seed))
+            return SeedCorrelationResult.Success;
+        if (!IsHyperspaceShinyPossible)
+            return SeedCorrelationResult.Invalid;
+        if ((pk.IsShiny && !LumioseSolver.SearchShiny1) || !LumioseSolver.SearchShinyN)
+            return SeedCorrelationResult.Ignore;
+
+        // Assume any combination of shiny charm and donut boost is active.
+        param = param with { RollCount = 1 + ShinyCharm + ShinyHyperspace };
+        if (param.TryGetSeed(pk, out seed))
             return SeedCorrelationResult.Success;
         return SeedCorrelationResult.Invalid;
     }
@@ -208,9 +224,21 @@ public sealed record EncounterStatic9a(ushort Species, byte Form, byte Level, by
         }
     }
 
-    public GenerateParam9a GetParams(PersonalInfo9ZA pi)
+    private const byte ShinyCharm = 3;
+    private const byte ShinyHyperspace = 3;
+
+    public GenerateParam9a GetParams(PersonalInfo9ZA pi) => GetParams(pi, shinyCharm: false, activeShinyPower: false);
+
+    public GenerateParam9a GetParams(PersonalInfo9ZA pi, bool shinyCharm, bool activeShinyPower)
     {
-        const byte rollCount = 1;
+        byte rollCount = 1;
+        if (IsHyperspaceShinyPossible)
+        {
+            if (shinyCharm)
+                rollCount += ShinyCharm;
+            if (activeShinyPower)
+                rollCount += ShinyHyperspace;
+        }
         var gender = Gender switch
         {
             0 => PersonalInfo.RatioMagicMale,

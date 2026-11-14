@@ -122,6 +122,8 @@ public static class EncounterServerDate
         {9013, new(2021, 06, 17)}, // Gigantamax Bulbasaur
         {9014, new(2021, 06, 17)}, // Gigantamax Squirtle
         {9029, new(2025, 02, 11)}, // Shiny Keldeo
+
+        {9036, new(2026, 10, 06, +1)} // HOME Celebi
     };
 
     /// <summary>
@@ -168,7 +170,7 @@ public static class EncounterServerDate
     /// </summary>
     private static readonly Dictionary<int, DistributionWindow> WC9Gifts = new()
     {
-        {0001, new(2022, 11, 17)}, // PokéCenter Birthday Flabébé
+        {0001, new(2022, 11, 17, 2024, 02, 01)}, // PokéCenter Birthday Flabébé
         {0006, new(2022, 12, 16, 2023, 02, 01)}, // Jump Festa Gyarados
         {0501, new(2023, 02, 16, 2023, 02, 21)}, // Jiseok's Garganacl
         {1513, new(2023, 02, 27, 2024, 03, 01)}, // Hisuian Zoroark DLC Purchase Gift
@@ -234,13 +236,18 @@ public static class EncounterServerDate
         {0524, new(2025, 08, 14, 2025, 08, 31)}, // WCS 2025 Toedscool
         {0525, new(2025, 08, 15, 2025, 08, 23)}, // WCS 2025 Luca Ceribelli's Farigiraf
         {1540, new(2025, 09, 25, 2025, 10, 25)}, // Shiny Miraidon / Koraidon Gift
-        {0070, new(2025, 10, 31, 2027, 02, 01)}, // Poké Center Fidough Birthday Gift
+        {0070, new(2025, 10, 31, 2027, 02, 01)}, // PokéCenter Fidough Birthday Gift
+        {0526, new(2025, 11, 21, 2025, 12, 01)}, // LAIC 2026 Federico Camporesi’s Whimsicott
+        {0527, new(2026, 02, 12, 2026, 02, 21)}, // EUIC 2026 Yuma Kinugawa's Hisuian Typhlosion
+        {0072, new(2026, 11, 01, 2028, 02, 01)}, // PokéCenter Fidough Birthday Gift (Extension)
 
         {9021, HOME3_ML}, // Hidden Ability Sprigatito
         {9022, HOME3_ML}, // Hidden Ability Fuecoco
         {9023, HOME3_ML}, // Hidden Ability Quaxly
         {9024, new(2024, 10, 16)}, // Shiny Meloetta
         {9025, new(2024, 11, 01)}, // PokéCenter Birthday Tandemaus
+        {9030, new(2025, 10, 31)}, // PokéCenter Fidough Birthday Gift
+        {9035, new(2026, 06, 05, +1)} // PJCS26 Garchomp
     };
 
     /// <summary>
@@ -248,8 +255,19 @@ public static class EncounterServerDate
     /// </summary>
     private static readonly Dictionary<int, DistributionWindow> WA9Gifts = new()
     {
-        {1601, new(2025, 10, 14, 2026, 3, 1, +2)}, // Ralts holding Gardevoirite
-        {0102, new(2025, 10, 23, 2026, 2, 1, +2)}, // Slowpoke Poké Center Gift
-        {0101, new(2025, 10, 31, 2027, 2, 1)}, // Poké Center Audino Birthday Gift
+        {1601, new(2025, 10, 14, 2026, 03, 01, +2)}, // Ralts holding Gardevoirite
+        {0102, new(2025, 10, 23, 2026, 02, 01, +2)}, // Slowpoke PokéCenter Gift
+        {0101, new(2025, 10, 31, 2027, 02, 01)}, // PokéCenter Audino Birthday Gift
+        {1607, new(2025, 12, 09, 2026, 01, 20)}, // Alpha Charizard
+        {1615, new(2026, 10, 28, 2026, 11, 19)}, // Spewpa
+        {0105, new(2026, 11, 01, 2028, 02, 01)}, // PokéCenter Audino Birthday Gift (Extension)
+        {1616, new(2026, 11, 05, 2027, 02, 26)}, // Poké Ball Vivillon
+
+        {0603, new(2026, 08, 28)}, // WCS 2026 Greninja
+
+        {9031, new(2026, 04, 02)}, // Alpha Chikorita
+        {9032, new(2026, 04, 02)}, // Alpha Tepig
+        {9033, new(2026, 04, 02)}, // Alpha Totodile
+        {9034, new(2026, 04, 26)}, // Shiny Volcanion
     };
 }

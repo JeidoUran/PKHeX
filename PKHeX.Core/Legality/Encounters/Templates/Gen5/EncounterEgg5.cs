@@ -72,16 +72,18 @@ public sealed record EncounterEgg5(ushort Species, byte Form, GameVersion Versio
         var pi = PersonalTable.B2W2[Species];
         var gr = pi.Gender;
         var ability = criteria.GetAbilityFromNumber(Ability);
-        var pid = GetRandomPID(criteria, gr, out var gender);
+        var pid = GetRandomPID(criteria, gr, tr.ID32, out var gender);
         pid = (pid & 0xFFFEFFFFu) | (uint)(ability & 1) << 16; // 0x00000000 or 0x00010000
         pk.PID = pid;
         pk.Gender = gender;
         pk.RefreshAbility(ability);
+        if (ability == 0 && this is { Species: (int)Core.Species.Basculin, Form: 1 })
+            pk.Ability = (int)Core.Ability.Reckless;
 
         return pk;
     }
 
-    private static uint GetRandomPID(in EncounterCriteria criteria, byte gr, out byte gender)
+    private static uint GetRandomPID(in EncounterCriteria criteria, byte gr, uint id32, out byte gender)
     {
         var seed = Util.Rand32();
         while (true)
@@ -90,6 +92,9 @@ public sealed record EncounterEgg5(ushort Species, byte Form, GameVersion Versio
             var pid = seed;
             gender = EntityGender.GetFromPIDAndRatio(pid, gr);
             if (criteria.IsSpecifiedGender() && !criteria.IsSatisfiedGender(gender))
+                continue;
+            var shiny = ShinyUtil.GetIsShiny3(id32, pid);
+            if (criteria.Shiny.IsShiny() != shiny)
                 continue;
             return pid;
         }

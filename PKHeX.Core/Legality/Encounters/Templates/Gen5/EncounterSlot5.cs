@@ -14,7 +14,7 @@ public sealed record EncounterSlot5(EncounterArea5 Parent, ushort Species, byte 
     public Ball FixedBall => Ball.None;
     public Shiny Shiny => IsHiddenGrotto ? Shiny.Never : Shiny.Random;
     public bool IsShiny => false;
-    public ushort EggLocation => 0;
+    ushort ILocation.EggLocation => 0;
 
     public string Name => $"Wild Encounter ({Version})";
     public string LongName => $"{Name} {Type.ToString().Replace('_', ' ')}";
@@ -90,6 +90,8 @@ public sealed record EncounterSlot5(EncounterArea5 Parent, ushort Species, byte 
         var abilityIndex = Ability == AbilityPermission.OnlyHidden ? 2 : (int)((pk.PID >> 16) & 1);
         pk.RefreshAbility(abilityIndex);
         criteria.SetRandomIVs(pk);
+        if (abilityIndex == 0 && this is { Species: (int)Core.Species.Basculin, Form: 1, Version: GameVersion.B or GameVersion.W })
+            pk.Ability = (int)Core.Ability.Reckless;
     }
     #endregion
 
@@ -113,6 +115,11 @@ public sealed record EncounterSlot5(EncounterArea5 Parent, ushort Species, byte 
         bool isHidden = pk.AbilityNumber == 4;
         if (isHidden && this.IsPartialMatchHidden(pk.Species, Species))
             return EncounterMatchRating.PartialMatch;
+
+        // B2/W2 Vespiquen (Level 24 both evolutions available at same location)
+        // Bigender->Fixed (non-Genderless) destination species, accounting for PID-Gender relationship
+        if (Species == (int)Core.Species.Combee && pk.Species == (int)Core.Species.Vespiquen && (pk.EncryptionConstant & 0xFF) >= 0x1F) // Combee->Vespiquen Invalid Evolution
+            return EncounterMatchRating.DeferredErrors;
         if (IsDeferredHiddenAbility(isHidden))
             return EncounterMatchRating.Deferred;
         return EncounterMatchRating.Match;

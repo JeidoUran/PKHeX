@@ -23,12 +23,13 @@ public static class StartupUtil
         SaveFile.SetUpdatePKM = write.SetUpdatePKM ? EntityImportOption.Enable : EntityImportOption.Disable;
         SaveFile.SetUpdateRecords = write.SetUpdateRecords ? EntityImportOption.Enable : EntityImportOption.Disable;
         CommonEdits.ShowdownSetIVMarkings = settings.Import.ApplyMarkings;
-        CommonEdits.ShowdownSetBehaviorNature = settings.Import.ApplyNature;
+        CommonEdits.ShowdownSetBehaviorNature = settings.Import.ApplyStatAlignment;
         ParseSettings.Initialize(settings.Legality);
 
         var converter = settings.Converter;
         EntityConverter.AllowIncompatibleConversion = converter.AllowIncompatibleConversion;
         EntityConverter.RejuvenateHOME = converter.AllowGuessRejuvenateHOME;
+        EntityConverter.IsPreferredTransferVirtualHOME = converter.IsPreferredTransferVirtualHOME;
         EntityConverter.VirtualConsoleSourceGen1 = converter.VirtualConsoleSourceGen1;
         EntityConverter.VirtualConsoleSourceGen2 = converter.VirtualConsoleSourceGen2;
         EntityConverter.RetainMetDateTransfer45 = converter.RetainMetDateTransfer45;

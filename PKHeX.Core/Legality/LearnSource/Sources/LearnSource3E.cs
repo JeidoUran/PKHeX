@@ -63,6 +63,8 @@ public sealed class LearnSource3E : LearnSource3, ILearnSource<PersonalInfo3>, I
         {
             if (GetIsTM(pi, move))
                 return new(TMHM, Game);
+
+            // HM Moves must be removed prior to transferring. Only allow if un-transferred.
             if (pk.Format == Generation && GetIsHM(pi, move))
                 return new(TMHM, Game);
         }
@@ -73,7 +75,7 @@ public sealed class LearnSource3E : LearnSource3, ILearnSource<PersonalInfo3>, I
         return default;
     }
 
-    private static bool GetIsSpecialTutor(ushort species, ushort move)
+    public static bool GetIsSpecialTutor(ushort species, ushort move)
     {
         var info = Personal[species];
         var index = Tutor_E.IndexOf(move);
@@ -121,7 +123,8 @@ public sealed class LearnSource3E : LearnSource3, ILearnSource<PersonalInfo3>, I
                     result[moves[i]] = true;
             }
 
-            if (pk.Format == 3)
+            // HM Moves must be removed prior to transferring. Only allow if un-transferred.
+            if (pk.Format == Generation)
             {
                 moves = MachineMovesHidden;
                 for (int i = 0; i < moves.Length; i++)
@@ -144,10 +147,33 @@ public sealed class LearnSource3E : LearnSource3, ILearnSource<PersonalInfo3>, I
         }
     }
 
+    // TODO RSE VC: Remove these.
+    internal static bool GetIsTutorFRLG(ushort species, ushort move)
+    {
+        var info = Personal[species];
+        var index = Tutor_E.IndexOf(move);
+        if ((uint)index >= 15)
+            return false;
+        return info.TypeTutors[index];
+    }
+
+    internal static void GetAllTutorMovesFRLG(Span<bool> result, ushort species)
+    {
+        var pi = Personal[species];
+        var flags = pi.TypeTutors;
+        var moves = Tutor_E;
+        for (int i = 0; i < 15; i++)
+        {
+            if (flags[i])
+                result[moves[i]] = true;
+        }
+    }
+
     private static ReadOnlySpan<ushort> Tutor_E =>
     [
-        005, 014, 025, 034, 038, 068, 069, 102, 118, 135,
-        138, 086, 153, 157, 164, 223, 205, 244, 173, 196,
-        203, 189, 008, 207, 214, 129, 111, 009, 007, 210,
+        // Introduced in FR/LG
+        005, 014, 025, 034, 038, 068, 069, 102, 118, 135, 138, 086, 153, 157, 164,
+        // Introduced in Emerald
+        223, 205, 244, 173, 196, 203, 189, 008, 207, 214, 129, 111, 009, 007, 210,
     ];
 }

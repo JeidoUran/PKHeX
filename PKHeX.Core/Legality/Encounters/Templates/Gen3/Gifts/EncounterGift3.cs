@@ -40,7 +40,7 @@ public sealed record EncounterGift3 : IEncounterable, IEncounterMatch, IMoveset,
     public byte LevelMin => Level;
     public byte LevelMax => Level;
     public ushort Location => 255; // Event
-    public ushort EggLocation => 0;
+    ushort ILocation.EggLocation => 0;
     public Ball FixedBall => Ball.Poke;
     public string Name => "Event Gift";
     public string LongName => Name;
@@ -55,6 +55,7 @@ public sealed record EncounterGift3 : IEncounterable, IEncounterMatch, IMoveset,
     // Interface dummies
     public bool RibbonEarth { get => false; set { } }
     public bool RibbonCountry { get => false; set { } }
+    public bool RibbonWorld { get => false; set { } }
     public bool RibbonChampionBattle { get => false; set { } }
     public bool RibbonChampionRegional { get => false; set { } }
     public bool RibbonChampionNational { get => false; set { } }
@@ -89,6 +90,7 @@ public sealed record EncounterGift3 : IEncounterable, IEncounterMatch, IMoveset,
             RibbonCountry = RibbonCountry,
             RibbonNational = RibbonNational,
             RibbonEarth = RibbonEarth,
+            RibbonWorld = RibbonWorld,
             RibbonChampionBattle = RibbonChampionBattle,
             RibbonChampionRegional = RibbonChampionRegional,
             RibbonChampionNational = RibbonChampionNational,
@@ -106,7 +108,18 @@ public sealed record EncounterGift3 : IEncounterable, IEncounterMatch, IMoveset,
         pk.SetMaximumPPCurrent(Moves);
 
         // Generate PIDIV
+        if (IsEgg)
+            pk.ID32 = tr.ID32; // temporary, so that eggs generate as desired for their final trainer.
+
         var seed = SetPINGA(pk, criteria, pi);
+        if (IsEgg) // reset back to the fixed IDs if available
+        {
+            if (TID16 is not UnspecifiedID)
+                pk.TID16 = TID16;
+            if (SID16 is not UnspecifiedID)
+                pk.SID16 = SID16;
+        }
+
         bool hatchedEgg = IsEgg && tr.Generation != 3;
         if (hatchedEgg)
         {
@@ -202,7 +215,7 @@ public sealed record EncounterGift3 : IEncounterable, IEncounterMatch, IMoveset,
                 _ when Method is Method_2 => GetMethod2(ref seed),
                 _ => GetRegular(ref seed),
             };
-            if (criteria.IsSpecifiedNature() && !criteria.IsSatisfiedNature((Nature)(pid % 25)))
+            if (criteria.IsSpecifiedNature() && !criteria.IsSatisfiedNature(pid))
                 continue; // try again
             if (criteria.IsSpecifiedGender() && !criteria.IsSatisfiedGender(EntityGender.GetFromPIDAndRatio(pid, gr)))
                 continue;
@@ -210,6 +223,8 @@ public sealed record EncounterGift3 : IEncounterable, IEncounterMatch, IMoveset,
             pk.PID = pid;
             pk.IV32 = ClassicEraRNG.GetSequentialIVs(ref seed);
             pk.RefreshAbility((int)(pk.PID & 1));
+            if (ID32 is Wishmkr.TrainerID)
+                pk.HeldItem = Wishmkr.GetHeldItem(LCRNG.Next16(ref seed));
             return seed;
         }
     }
@@ -239,13 +254,21 @@ public sealed record EncounterGift3 : IEncounterable, IEncounterMatch, IMoveset,
 
     private static bool TrySetWishmkrShiny(PK3 pk, in EncounterCriteria criteria)
     {
+        // 9 shinies, none duplicate nature. If nature is specified, try to set that nature.
+        if (criteria.Nature.IsFixed && Wishmkr.TryGetSeed(criteria.Nature, out var u16))
+        {
+            GenerateWishmkr(pk, u16);
+            return true;
+        }
+
+        // Nature can still be a "pick one of" nature, if specified.
         bool filterIVs = criteria.IsSpecifiedIVs(2);
         bool filterNature = criteria.IsSpecifiedNature();
         foreach (var s in Wishmkr.All9)
         {
             uint seed = s;
             var pid = GetRegular(ref seed);
-            if (filterNature && !criteria.IsSatisfiedNature((Nature)(pid % 25)))
+            if (filterNature && !criteria.IsSatisfiedNature(pid))
                 continue; // try again
 
             var iv32 = ClassicEraRNG.GetSequentialIVs(ref seed);
@@ -253,10 +276,21 @@ public sealed record EncounterGift3 : IEncounterable, IEncounterMatch, IMoveset,
                 continue; // try again
             if (filterIVs && !criteria.IsSatisfiedIVs(iv32))
                 continue; // try again
+
             pk.PID = pid;
             pk.IV32 = iv32;
+            pk.HeldItem = Wishmkr.GetHeldItemFromSeed(s);
+            return true;
         }
         return false;
+    }
+
+    public static void GenerateWishmkr(PK3 pk, ushort u16)
+    {
+        uint seed = u16;
+        pk.PID = GetRegular(ref seed);
+        pk.IV32 = ClassicEraRNG.GetSequentialIVs(ref seed);
+        pk.HeldItem = Wishmkr.GetHeldItemFromSeed(u16);
     }
 
     private static uint GetMethod2(ref uint seed)
@@ -280,7 +314,7 @@ public sealed record EncounterGift3 : IEncounterable, IEncounterMatch, IMoveset,
                     continue;
                 SetValuesFromSeedChannel(pk, seed);
                 var pid = pk.EncryptionConstant;
-                if (criteria.IsSpecifiedNature() && !criteria.IsSatisfiedNature((Nature)(pid % 25)))
+                if (criteria.IsSpecifiedNature() && !criteria.IsSatisfiedNature(pid))
                     continue; // try again
                 if (criteria.Shiny.IsShiny() != ShinyUtil.GetIsShiny3(pk.ID32, pid))
                     continue; // try again
@@ -296,7 +330,7 @@ public sealed record EncounterGift3 : IEncounterable, IEncounterMatch, IMoveset,
             SetValuesFromSeedChannel(pk, seed);
 
             var pid = pk.EncryptionConstant;
-            if (criteria.IsSpecifiedNature() && !criteria.IsSatisfiedNature((Nature)(pid % 25)))
+            if (criteria.IsSpecifiedNature() && !criteria.IsSatisfiedNature(pid))
                 continue; // try again
             if (criteria.Shiny.IsShiny() != ShinyUtil.GetIsShiny3(pk.ID32, pid))
                 continue; // try again
@@ -333,7 +367,7 @@ public sealed record EncounterGift3 : IEncounterable, IEncounterMatch, IMoveset,
 
     private uint GetSaneSeed(uint seed) => Method switch
     {
-        BACD_RBCD => Math.Clamp(seed, 3, 213), // BCD digit sum
+        BACD_RBCD => Math.Clamp(seed, 0, 213), // Binary Coded Decimal hh:mm:ss timestamp digit sum from RTC
         BACD_TA when Species is (ushort)Core.Species.Jirachi
             => LCRNG.Next2(seed & 0xFFFF), // table rand, but table result identical
         BACD_TA or BACD_TS // shiny depends on encounter
@@ -342,7 +376,7 @@ public sealed record EncounterGift3 : IEncounterable, IEncounterMatch, IMoveset,
         BACD_M => MystryMew.GetSeed(seed),
         _ when OriginalTrainerGender is GiftGender3.RandD3_0 => GetRandomRestrictedGenderBit0(seed, 0),
         _ when OriginalTrainerGender is GiftGender3.RandD3_1 => GetRandomRestrictedGenderBit0(seed, 1),
-        _ => Method.IsRestricted() ? seed & 0x0000FFFF : seed,
+        _ => Method.IsRestricted ? seed & 0x0000FFFF : seed,
     };
 
     private LanguageID GetSafeLanguage(LanguageID hatchLang)

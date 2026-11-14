@@ -63,6 +63,9 @@ public partial class SAV_BattlePass : Form
         LoadCurrent(CurrentPass);
 
         loading = false;
+
+        if (Application.IsDarkModeEnabled)
+            WinFormsUtil.InvertToolStripIcons(mnu.Items);
     }
 
     #region Combo Boxes
@@ -119,7 +122,7 @@ public partial class SAV_BattlePass : Form
         {
             if (counts[titles1[i]] > 1)
             {
-                var model = CharacterStyles[(i / (titles1.Length / 6) + 1)];
+                var model = CharacterStyles[(i / (titles1.Length / 6)) + 1];
                 titles1[i] += $" ({model})";
             }
         }
@@ -214,7 +217,7 @@ public partial class SAV_BattlePass : Form
             pb.MouseEnter += (_, _) => HoverSlot(pb);
             pb.MouseLeave += (_, _) => Preview.Clear();
         }
-        Closing += (_, _) => Preview.Clear();
+        FormClosing += (_, _) => Preview.Clear();
     }
 
     private void HoverSlot(PictureBox pb)
@@ -261,7 +264,7 @@ public partial class SAV_BattlePass : Form
             return;
         PKM pk = View.PreparePKM();
         if (pk.Species == 0)
-        { System.Media.SystemSounds.Asterisk.Play(); return; }
+        { WinFormsUtil.Asterisk(); return; }
 
         var index = GetSenderIndex(sender);
         var sav = SAV;
@@ -295,7 +298,7 @@ public partial class SAV_BattlePass : Form
         var index = GetSenderIndex(sender);
         var pk = CurrentPass.GetPartySlotAtIndex(index);
         if (pk.Species == 0)
-        { System.Media.SystemSounds.Asterisk.Play(); return; }
+        { WinFormsUtil.Asterisk(); return; }
 
         SaveCurrent(CurrentPass);
         CurrentPass.DeletePartySlot(index);
@@ -438,12 +441,30 @@ public partial class SAV_BattlePass : Form
         NUD_RecordStargazerColosseumClears.Value = pdata.RecordStargazerColosseumClears;
 
         for (int i = 0; i < BattlePass.Count; i++)
-            Box.Entries[i].Image = pdata.GetPartySlotPresent(i) ? pdata.GetPartySlotAtIndex(i).Sprite(SAV, flagIllegal: true) : SpriteUtil.Spriter.None;
+        {
+            var pb = Box.Entries[i];
+            if (!pdata.GetPartySlotPresent(i))
+            {
+                pb.Image = SpriteUtil.Spriter.None;
+                continue;
+            }
+
+            var pk = pdata.GetPartySlotAtIndex(i);
+            pb.Image = pk.Sprite(SAV, visibility: GetFlags(pk));
+        }
 
         if (slotSelected != -1 && (uint)slotSelected < Box.Entries.Count)
             Box.Entries[slotSelected].BackgroundImage = groupSelected != CurrentPassIndex ? null : SpriteUtil.Spriter.View;
 
         loading = false;
+    }
+
+    private SlotVisibilityType GetFlags(PKM pk, bool ignoreLegality = false)
+    {
+        var result = SlotVisibilityType.None;
+        if (!ignoreLegality)
+            result |= SlotVisibilityType.CheckLegalityIndicate;
+        return result;
     }
 
     private void SaveCurrent(BattlePass pdata)
@@ -555,7 +576,7 @@ public partial class SAV_BattlePass : Form
         data.CopyTo(CurrentPass.Data);
 
         LoadCurrent(CurrentPass);
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private void B_Export_Click(object sender, EventArgs e)
@@ -590,7 +611,7 @@ public partial class SAV_BattlePass : Form
         var other = index + (down ? 1 : -1);
         if ((uint)other >= LB_Passes.Items.Count)
         {
-            System.Media.SystemSounds.Asterisk.Play();
+            WinFormsUtil.Asterisk();
             return;
         }
         SaveCurrent(CurrentPass);

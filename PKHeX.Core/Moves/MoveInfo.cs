@@ -243,13 +243,15 @@ public static class MoveInfo
         return types[move];
     }
 
-    public static bool IsAnyFromGeneration(byte generation, ReadOnlySpan<MoveResult> moves)
+    public static bool IsAnyFromGeneration(EntityContext context, ReadOnlySpan<MoveResult> moves)
     {
         foreach (var move in moves)
         {
-            if (move.Generation == generation)
+            if (move.Context == context)
                 return true;
         }
         return false;
     }
+
+    public static int GetMoveIndexFromGOIndex(int move) => MoveInfoGO.GOToCoreSeries[move];
 }

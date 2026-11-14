@@ -6,7 +6,7 @@ namespace PKHeX.Core;
 /// <summary>
 /// Side game data for <see cref="PK8"/> data transferred into HOME.
 /// </summary>
-public sealed class GameDataPK8 : HomeOptional1, IGameDataSide<PK8>, IGigantamax, IDynamaxLevel, ISociability, IGameDataSplitAbility, IPokerusStatus
+public sealed class GameDataPK8 : HomeOptional1, IGameDataSide<PK8>, IGigantamax, IDynamaxLevel, ISociability, IGameDataSplitAbility, IPokerusStatus, IGameDataSidePP
 {
     private const HomeGameDataFormat ExpectFormat = HomeGameDataFormat.PK8;
     private const int SIZE = HomeCrypto.SIZE_2GAME_PK8;
@@ -27,14 +27,14 @@ public sealed class GameDataPK8 : HomeOptional1, IGameDataSide<PK8>, IGigantamax
     public ushort Move3 { get => ReadUInt16LittleEndian(Data[0x09..]); set => WriteUInt16LittleEndian(Data[0x09..], value); }
     public ushort Move4 { get => ReadUInt16LittleEndian(Data[0x0B..]); set => WriteUInt16LittleEndian(Data[0x0B..], value); }
 
-    public int Move1_PP { get => Data[0x0D]; set => Data[0x0D] = (byte)value; }
-    public int Move2_PP { get => Data[0x0E]; set => Data[0x0E] = (byte)value; }
-    public int Move3_PP { get => Data[0x0F]; set => Data[0x0F] = (byte)value; }
-    public int Move4_PP { get => Data[0x10]; set => Data[0x10] = (byte)value; }
-    public int Move1_PPUps { get => Data[0x11]; set => Data[0x11] = (byte)value; }
-    public int Move2_PPUps { get => Data[0x12]; set => Data[0x12] = (byte)value; }
-    public int Move3_PPUps { get => Data[0x13]; set => Data[0x13] = (byte)value; }
-    public int Move4_PPUps { get => Data[0x14]; set => Data[0x14] = (byte)value; }
+    public byte Move1_PP { get => Data[0x0D]; set => Data[0x0D] = value; }
+    public byte Move2_PP { get => Data[0x0E]; set => Data[0x0E] = value; }
+    public byte Move3_PP { get => Data[0x0F]; set => Data[0x0F] = value; }
+    public byte Move4_PP { get => Data[0x10]; set => Data[0x10] = value; }
+    public byte Move1_PPUps { get => Data[0x11]; set => Data[0x11] = value; }
+    public byte Move2_PPUps { get => Data[0x12]; set => Data[0x12] = value; }
+    public byte Move3_PPUps { get => Data[0x13]; set => Data[0x13] = value; }
+    public byte Move4_PPUps { get => Data[0x14]; set => Data[0x14] = value; }
 
     public ushort RelearnMove1 { get => ReadUInt16LittleEndian(Data[0x15..]); set => WriteUInt16LittleEndian(Data[0x15..], value); }
     public ushort RelearnMove2 { get => ReadUInt16LittleEndian(Data[0x17..]); set => WriteUInt16LittleEndian(Data[0x17..], value); }
@@ -86,8 +86,7 @@ public sealed class GameDataPK8 : HomeOptional1, IGameDataSide<PK8>, IGigantamax
         pk.AbilityNumber = AbilityNumber;
         pk.Ability = Ability;
 
-        if (!IsOriginallySWSH(pkh.Version, pk.MetLocation))
-            pk.Version = LocationsHOME.GetVersionSWSH(pkh.Version);
+        SanitizeEntity(pk, pkh.Version);
     }
 
     public void CopyFrom(PK8 pk, PKH pkh)
@@ -103,6 +102,10 @@ public sealed class GameDataPK8 : HomeOptional1, IGameDataSide<PK8>, IGigantamax
         PokerusState = pk.PokerusState;
         AbilityNumber = (byte)pk.AbilityNumber;
         Ability = (ushort)pk.Ability;
+
+        // Special: Let our converters know the real version.
+        if (LocationsHOME.IsLocationSWSH(pk.MetLocation))
+            pk.Version = LocationsHOME.GetVersionSWSHOriginal(pk.MetLocation);
     }
 
     public void CopyFrom(PK7 pk, PKH pkh)
@@ -153,9 +156,8 @@ public sealed class GameDataPK8 : HomeOptional1, IGameDataSide<PK8>, IGigantamax
     }
 
     // Ignores LGP/E, already preferred if exists.
-    private static IGameDataSide? GetNearestNeighbor(PKH pkh) => pkh.DataPK9 as IGameDataSide
-                                                              ?? pkh.DataPB8 as IGameDataSide
-                                                              ?? pkh.DataPA8;
+    private static IGameDataSide? GetNearestNeighbor(PKH pkh)
+        => pkh.DataPA9 ?? pkh.DataPK9 ?? pkh.DataPB8 ?? pkh.DataPA8 as IGameDataSide;
 
     private static GameDataPK8 CreateViaPB7(PKH pkh, GameDataPB7 x)
     {
@@ -176,20 +178,29 @@ public sealed class GameDataPK8 : HomeOptional1, IGameDataSide<PK8>, IGigantamax
         return result;
     }
 
-    public void InitializeFrom(IGameDataSide side, PKH pkh)
+    private static void SanitizeEntity(PK8 pk, GameVersion version)
     {
+        // Sanitize the ball regardless of origin.
+        pk.Ball = GetBall(pk.Ball);
+
+        if (!LocationsHOME.IsVersionRemapNeeded(version))
+            return;
+
+        // Sanitize the version.
+        pk.Version = LocationsHOME.GetVersionSWSH(version);
+
         // BD/SP->SW/SH: Set the Met Location to the magic Location, set the Egg Location to 0 if -1, otherwise BDSPEgg
         // (0 is a valid location, but no eggs can be EggMet there -- only hatched.)
         // PLA->SW/SH: Set the Met Location to the magic Location, set the Egg Location to 0 (no eggs in game).
-        var version = pkh.Version;
-        var met = side.MetLocation;
-        var ball = GetBall(side.Ball);
-        var egg = GetEggLocation(side.EggLocation);
-        if (!IsOriginallySWSH(version, met))
-            RemapMetEgg(version, ref met, ref egg);
-        Ball = ball;
-        MetLocation = met;
-        EggLocation = egg;
+        pk.MetLocation = LocationsHOME.GetMetSWSH(pk.MetLocation, version);
+        pk.EggLocation = LocationsHOME.GetEggSWSH(pk.EggLocation, version);
+    }
+
+    public void InitializeFrom(IGameDataSide side, PKH pkh)
+    {
+        Ball = side.Ball;
+        MetLocation = side.MetLocation;
+        EggLocation = side.EggLocation;
         if (side is IGameDataSplitAbility a)
             AbilityNumber = a.AbilityNumber;
         if (side is IPokerusStatus p)
@@ -207,18 +218,5 @@ public sealed class GameDataPK8 : HomeOptional1, IGameDataSide<PK8>, IGigantamax
         Ability = (ushort)pi.GetAbilityAtIndex(index);
     }
 
-    private static void RemapMetEgg(GameVersion version, ref ushort met, ref ushort egg)
-    {
-        var remap = LocationsHOME.GetMetSWSH(met, version);
-        if (remap == met)
-            return;
-
-        met = remap;
-        egg = egg is not (0 or Locations.Default8bNone) ? LocationsHOME.SWSHEgg : (ushort)0;
-    }
-
-    private static bool IsOriginallySWSH(GameVersion version, ushort loc) => version is GameVersion.SW or GameVersion.SH && !IsFakeMetLocation(loc);
-    private static bool IsFakeMetLocation(ushort met) => LocationsHOME.IsLocationSWSH(met);
     private static byte GetBall(byte ball) => ball > (byte)Core.Ball.Beast ? (byte)4 : ball;
-    private static ushort GetEggLocation(ushort egg) => egg != Locations.Default8bNone ? egg : (ushort)0;
 }

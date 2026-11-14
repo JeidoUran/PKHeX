@@ -17,6 +17,8 @@ namespace PKHeX.WinForms;
 
 public partial class SAV_MysteryGiftDB : Form
 {
+    private const int GridHeightMin = 5;
+    private const int GridHeightMax = 20;
     private readonly PKMEditor PKME_Tabs;
     private readonly SaveFile SAV;
     private readonly SAVEditor BoxView;
@@ -24,11 +26,18 @@ public partial class SAV_MysteryGiftDB : Form
     private readonly EntityInstructionBuilder UC_Builder;
 
     private const int GridWidth = 6;
-    private const int GridHeight = 11;
+    private readonly int GridHeight;
 
     public SAV_MysteryGiftDB(PKMEditor tabs, SAVEditor sav)
     {
         InitializeComponent();
+
+        var settings = new TabPage { Text = "Settings", Name = "Tab_Settings" };
+        var settingsGrid = new PropertyGrid { Dock = DockStyle.Fill };
+        PropertyGridLocalization.Apply(settingsGrid, Main.Settings.MysteryDb, Main.CurrentLanguage);
+        settings.Controls.Add(settingsGrid);
+        TC_SearchSettings.Controls.Add(settings);
+
         WinFormsUtil.TranslateInterface(this, Main.CurrentLanguage);
         UC_Builder = new EntityInstructionBuilder(() => tabs.PreparePKM())
         {
@@ -45,23 +54,16 @@ public partial class SAV_MysteryGiftDB : Form
         SAV = sav.SAV;
         BoxView = sav;
         PKME_Tabs = tabs;
+        GridHeight = GetGridHeight(Main.Settings.MysteryDb.ResultsGridRowCount, MysteryPokeGrid);
 
         // Preset Filters to only show PKM available for loaded save
         CB_FormatComparator.SelectedIndex = 3; // <=
 
         var grid = MysteryPokeGrid;
-        var smallWidth = grid.Width;
-        var smallHeight = grid.Height;
+        var originalGridSize = grid.Size;
         grid.InitializeGrid(GridWidth, GridHeight, SpriteUtil.Spriter);
         grid.SetBackground(Resources.box_wp_clean);
-        var newWidth = grid.Width;
-        var newHeight = grid.Height;
-        var wDelta = newWidth - smallWidth;
-        if (wDelta != 0)
-            Width += wDelta;
-        var hDelta = newHeight - smallHeight;
-        if (hDelta != 0)
-            Height += hDelta;
+        ResizeForGrid(grid, originalGridSize);
 
         PKXBOXES = [.. grid.Entries];
 
@@ -79,7 +81,7 @@ public partial class SAV_MysteryGiftDB : Form
             slot.MouseEnter += (_, _) => ShowHoverTextForSlot(slot);
             slot.Enter += (_, _) =>
             {
-                var index = Array.IndexOf(PKXBOXES, slot);
+                var index = PKXBOXES.IndexOf(slot);
                 if (index < 0)
                     return;
                 index += (SCR_Box.Value * RES_MIN);
@@ -93,12 +95,8 @@ public partial class SAV_MysteryGiftDB : Form
 
         Counter = L_Count.Text;
         Viewed = L_Viewed.Text;
-        L_Viewed.Text = string.Empty; // invis for now
+        L_Viewed.Text = string.Empty; // invisible for now
         L_Viewed.MouseEnter += (_, _) => hover.SetToolTip(L_Viewed, L_Viewed.Text);
-
-        var settings = new TabPage { Text = "Settings" };
-        settings.Controls.Add(new PropertyGrid { Dock = DockStyle.Fill, SelectedObject = Main.Settings.EncounterDb });
-        TC_SearchSettings.Controls.Add(settings);
 
         // Load Data
         B_Search.Enabled = false;
@@ -107,7 +105,22 @@ public partial class SAV_MysteryGiftDB : Form
 
         CB_Format.Items[0] = MsgAny;
         CenterToParent();
-        CB_Species.Select();
+
+        if (Application.IsDarkModeEnabled)
+        {
+            WinFormsUtil.InvertToolStripIcons(menuStrip1.Items);
+            WinFormsUtil.InvertToolStripIcons(mnu.Items);
+        }
+    }
+
+    protected override void OnShown(EventArgs e)
+    {
+        base.OnShown(e);
+        foreach (var cb in TLP_Filters.Controls.OfType<ComboBox>())
+        {
+            cb.SelectedIndex = 0;
+            cb.Select(0, 0);
+        }
     }
 
     private readonly PictureBox[] PKXBOXES;
@@ -117,10 +130,31 @@ public partial class SAV_MysteryGiftDB : Form
     private int slotSelected = -1; // = null;
     private Image? slotColor;
     private const int RES_MIN = GridWidth * 1;
-    private const int RES_MAX = GridWidth * GridHeight;
+    private int RES_MAX => PKXBOXES.Length;
     private readonly string Counter;
     private readonly string Viewed;
     private const int MAXFORMAT = Latest.Generation;
+
+    private int GetGridHeight(int requestedRows, PokeGrid grid)
+    {
+        requestedRows = Math.Clamp(requestedRows, GridHeightMin, GridHeightMax);
+        var workingAreaHeight = Screen.FromControl(this).WorkingArea.Height;
+        var otherHeight = Height - grid.Height;
+        var maxGridHeight = Math.Max(grid.Height, workingAreaHeight - otherHeight);
+        var maxRows = PokeGrid.GetMaxRowCount(maxGridHeight, SpriteUtil.Spriter.Height);
+        return Math.Max(1, Math.Min(requestedRows, maxRows));
+    }
+
+    private void ResizeForGrid(PokeGrid grid, Size originalGridSize)
+    {
+        var widthDelta = grid.Width - originalGridSize.Width;
+        if (widthDelta != 0)
+            Width += widthDelta;
+
+        var heightDelta = grid.Height - originalGridSize.Height;
+        if (heightDelta != 0)
+            Height += heightDelta;
+    }
 
     private bool GetShiftedIndex(ref int index)
     {
@@ -136,7 +170,7 @@ public partial class SAV_MysteryGiftDB : Form
         int index = GetSenderIndex(sender);
         if (index < 0)
             return;
-        var temp = Results[index].ConvertToPKM(SAV);
+        var temp = Results[index].ConvertToPKM(SAV, EncounterCriteria.Unrestricted);
         var pk = EntityConverter.ConvertToType(temp, SAV.PKMType, out var c);
         if (pk is null)
         {
@@ -180,16 +214,16 @@ public partial class SAV_MysteryGiftDB : Form
     {
         if (!WinFormsUtil.TryGetUnderlying<PictureBox>(sender, out var pb))
             ArgumentNullException.ThrowIfNull(pb);
-        int index = Array.IndexOf(PKXBOXES, pb);
+        int index = PKXBOXES.IndexOf(pb);
         if (index >= RES_MAX)
         {
-            System.Media.SystemSounds.Exclamation.Play();
+            WinFormsUtil.Exclamation();
             return -1;
         }
         index += SCR_Box.Value * RES_MIN;
         if (index >= Results.Count)
         {
-            System.Media.SystemSounds.Exclamation.Play();
+            WinFormsUtil.Exclamation();
             return -1;
         }
         return index;
@@ -225,7 +259,6 @@ public partial class SAV_MysteryGiftDB : Form
         }
 
         // Trigger a Reset
-        ResetFilters(this, EventArgs.Empty);
         B_Search.Enabled = true;
     }
 
@@ -240,7 +273,7 @@ public partial class SAV_MysteryGiftDB : Form
         RTB_Instructions.Clear();
 
         if (sender != this)
-            System.Media.SystemSounds.Asterisk.Play();
+            WinFormsUtil.Asterisk();
     }
 
     private void LoadDatabase()
@@ -347,8 +380,8 @@ public partial class SAV_MysteryGiftDB : Form
         if (batchText.Length != 0 && !StringInstructionSet.HasEmptyLine(batchText))
         {
             var filters = StringInstruction.GetFilters(batchText);
-            BatchEditing.ScreenStrings(filters);
-            res = res.Where(pk => BatchEditing.IsFilterMatch(filters, pk)); // Compare across all filters
+            EntityBatchEditor.ScreenStrings(filters);
+            res = res.Where(pk => BatchEditingUtil.IsFilterMatch(filters, pk)); // Compare across all filters
         }
 
         var results = res.ToArray();
@@ -356,7 +389,7 @@ public partial class SAV_MysteryGiftDB : Form
             WinFormsUtil.Alert(MsgDBSearchNone);
 
         SetResults([..results]); // updates Count Label as well.
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private void UpdateScroll(object sender, ScrollEventArgs e)
@@ -384,6 +417,7 @@ public partial class SAV_MysteryGiftDB : Form
 
     private void FillPKXBoxes(int start)
     {
+        ShowSet.Clear();
         if (Results.Count == 0)
         {
             for (int i = 0; i < RES_MAX; i++)
@@ -456,7 +490,7 @@ public partial class SAV_MysteryGiftDB : Form
 
     private void ShowHoverTextForSlot(PictureBox pb)
     {
-        int index = Array.IndexOf(PKXBOXES, pb);
+        int index = PKXBOXES.IndexOf(pb);
         if (!GetShiftedIndex(ref index))
             return;
 

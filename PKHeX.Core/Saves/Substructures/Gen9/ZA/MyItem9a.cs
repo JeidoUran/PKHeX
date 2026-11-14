@@ -7,7 +7,7 @@ namespace PKHeX.Core;
 /// <summary>
 /// Player item pouches storage
 /// </summary>
-/// <remarks>size=0xBB80 (<see cref="ItemSaveSize"/> items)</remarks>
+/// <remarks>size=0xBC00; items plus another 0x80 bytes</remarks>
 public sealed class MyItem9a(SAV9ZA sav, SCBlock block) : MyItem(sav, block.Raw)
 {
     public const int ItemSaveSize = 3000;
@@ -15,6 +15,37 @@ public sealed class MyItem9a(SAV9ZA sav, SCBlock block) : MyItem(sav, block.Raw)
     private Span<byte> GetItemSpan(ushort itemIndex) => InventoryPouch9a.GetItemSpan(Data, itemIndex);
 
     public uint DefaultInitPouch => ReadUInt32LittleEndian(Data); // Item 0
+
+    private const int PouchFlagsOffset = ItemSaveSize * InventoryItem9a.SIZE; // 0xBB80
+
+    private uint PouchFlags
+    {
+        get => ReadUInt32LittleEndian(Data[PouchFlagsOffset..]);
+        set => WriteUInt32LittleEndian(Data[PouchFlagsOffset..], value);
+    }
+
+    private bool GetFlag(int bit)
+    {
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(bit, 8);
+        return (PouchFlags & (1u << bit)) != 0;
+    }
+
+    private void SetFlag(int bit, bool value)
+    {
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(bit, 8);
+        uint mask = 1u << bit;
+        PouchFlags = (PouchFlags & ~mask) | (value ? mask : 0u);
+    }
+
+    public bool UnlockedMedicine   { get => GetFlag(0); set => SetFlag(0, value); }
+    public bool UnlockedBalls      { get => GetFlag(1); set => SetFlag(1, value); }
+    public bool UnlockedOther      { get => GetFlag(2); set => SetFlag(2, value); }
+    public bool UnlockedTreasure   { get => GetFlag(3); set => SetFlag(3, value); }
+    public bool UnlockedKey        { get => GetFlag(4); set => SetFlag(4, value); }
+    public bool UnlockedBerry      { get => GetFlag(5); set => SetFlag(5, value); }
+    public bool UnlockedTM         { get => GetFlag(6); set => SetFlag(6, value); } // not necessary to access
+    public bool UnlockedMegaStones { get => GetFlag(7); set => SetFlag(7, value); }
+    public bool UnlockedUnknown    { get => GetFlag(8); set => SetFlag(8, value); } // donuts? appears in DLC saves
 
     /// <summary>
     /// Deletes the item at the requested <paramref name="itemIndex"/>.
@@ -54,48 +85,6 @@ public sealed class MyItem9a(SAV9ZA sav, SCBlock block) : MyItem(sav, block.Raw)
 
     public static InventoryType GetType(ushort itemIndex) => ItemStorage9ZA.GetInventoryPouch(itemIndex);
 
-    public override IReadOnlyList<InventoryPouch> Inventory { get => ConvertToPouches(); set => LoadFromPouches(value); }
-
-    private IReadOnlyList<InventoryPouch> ConvertToPouches()
-    {
-        InventoryPouch9a[] pouches =
-        [
-            MakePouch(InventoryType.Medicine),
-            MakePouch(InventoryType.Balls),
-            MakePouch(InventoryType.Berries),
-            MakePouch(InventoryType.Items), // Other
-            MakePouch(InventoryType.TMHMs),
-            MakePouch(InventoryType.MegaStones),
-            MakePouch(InventoryType.Treasure),
-            MakePouch(InventoryType.KeyItems),
-        ];
-        return pouches.LoadAll(Data);
-    }
-
-    private void LoadFromPouches(IReadOnlyList<InventoryPouch> value)
-    {
-        value.SaveAll(Data);
-        CleanIllegalSlots();
-    }
-
-    private void CleanIllegalSlots()
-    {
-        var types = ItemStorage9ZA.ValidTypes;
-        var hashSet = new HashSet<ushort>(Legal.MaxItemID_9a);
-        foreach (var type in types)
-        {
-            var items = ItemStorage9ZA.GetLegal(type);
-            foreach (var item in items)
-                hashSet.Add(item);
-        }
-        // even though there are 3000, just overwrite the ones that people will mess up.
-        for (ushort itemIndex = 0; itemIndex < (ushort)SAV.MaxItemID; itemIndex++)
-        {
-            if (!hashSet.Contains(itemIndex))
-                DeleteItem(itemIndex);
-        }
-    }
-
     public void ResetToDefault()
     {
         var block = Data;
@@ -110,13 +99,6 @@ public sealed class MyItem9a(SAV9ZA sav, SCBlock block) : MyItem(sav, block.Raw)
             WriteUInt32LittleEndian(block[i..], defaultPouch);
     }
 
-    private static InventoryPouch9a MakePouch(InventoryType type)
-    {
-        var info = ItemStorage9ZA.Instance;
-        var max = info.GetMax(type);
-        return new InventoryPouch9a(type, info, max, GetPouchIndex(type));
-    }
-
     public static uint GetPouchIndex(InventoryType type) => type switch
     {
         InventoryType.Items => InventoryItem9a.PouchOther,
@@ -129,4 +111,24 @@ public sealed class MyItem9a(SAV9ZA sav, SCBlock block) : MyItem(sav, block.Raw)
         InventoryType.MegaStones => InventoryItem9a.PouchMegaStones,
         _ => InventoryItem9a.PouchNone,
     };
+
+    public void CleanIllegalSlots()
+    {
+        var types = ItemStorage9ZA.ValidTypes;
+        var hashSet = new HashSet<ushort>(Legal.MaxItemID_9a);
+        foreach (var type in types)
+        {
+            var items = ItemStorage9ZA.GetLegal(type);
+            foreach (var item in items)
+                hashSet.Add(item);
+        }
+
+        // even though there are 3000, just overwrite the ones that people will mess up.
+        var max = (ushort)sav.MaxItemID;
+        for (ushort itemIndex = 0; itemIndex < max; itemIndex++)
+        {
+            if (!hashSet.Contains(itemIndex))
+                DeleteItem(itemIndex);
+        }
+    }
 }

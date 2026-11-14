@@ -1,4 +1,4 @@
-PKHeX(포케헥스)
+PKHeX
 =====
 ![License](https://img.shields.io/badge/License-GPLv3-blue.svg)
 
@@ -9,8 +9,8 @@ PKHeX(포케헥스)
 * GC 포켓몬 세이브 게임이 들어 있는 게임큐브 메모리 카드 파일(\*.raw, \*.bin)  포함
 * 개별 포켓몬 엔티티 파일 (.pk\*, \*.ck3, \*.xk3, \*.pb7, \*.sk2, \*.bk4, \*.rk4)
 * 이상한소포 파일(\*.pgt, \*.pcd, \*.pgf, .wc\*)을 .pk로 변환하는 기능 포함
-* GO 파크 엔티티 가져오기 (\*.gp1) .pb7로 변환 포함
-* Decrypted 3DS Battle Videos에서 팀 가져오기
+* GO파크 엔티티 가져오기 (\*.gp1) .pb7로 변환 포함
+* 복호화된 3DS 배틀비디오에서 팀 가져오기
 * 한 세대에서 다른 세대로 이동하면서 그 과정에서 형식이 변환됩니다.
 
 데이터는 편집하고 저장할 수 있는 보기로 표시됩니다.
@@ -28,9 +28,9 @@ PKHeX는 콘솔 전용 키로 암호화되지 않은 세이브 파일을 요구�
 
 ## 빌드
 
-PKHeX는 [.NET 9.0](https://dotnet.microsoft.com/download/dotnet/9.0)이 필요한 Windows Forms 애플리케이션입니다.
+PKHeX는 [.NET 10.0](https://dotnet.microsoft.com/download/dotnet/10.0)이 필요한 Windows Forms 애플리케이션입니다.
 
-실행 파일은 C# 13을 지원하는 모든 컴파일러로 빌드할 수 있습니다.
+실행 파일은 C# 14을 지원하는 모든 컴파일러로 빌드할 수 있습니다.
 
 ### 빌드 구성
 
@@ -42,7 +42,7 @@ PKHeX의 QR 코드 생성 코드는 [the MIT license](https://github.com/codebud
 
 PKHeX의 이로치(색이다른) 스프라이트 컬렉션은 [the MIT license](https://github.com/msikma/pokesprite/blob/master/LICENSE)에 따라 라이선스가 부여된 [pokesprite](https://github.com/msikma/pokesprite)에서 가져왔습니다.
 
-PKheX의 Pokémon LEGENDS 아르세우스 스프라이트 컬렉션은 [National Pokédex - Icon Dex](https://www.deviantart.com/pikafan2000/art/National-Pokedex-Version-Delta-Icon-Dex-824897934) 프로젝트와 수많은 협력자 및 기여자의 도움을 받아 만들어졌습니다.
+PKHeX의 Pokémon LEGENDS 아르세우스 스프라이트 컬렉션은 [National Pokédex - Icon Dex](https://www.deviantart.com/pikafan2000/art/National-Pokedex-Version-Delta-Icon-Dex-824897934) 프로젝트와 수많은 협력자 및 기여자의 도움을 받아 만들어졌습니다.
 
 ### IDE(통합 개발 환경)
 

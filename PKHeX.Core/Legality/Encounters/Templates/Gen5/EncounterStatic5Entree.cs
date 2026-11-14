@@ -3,7 +3,7 @@ namespace PKHeX.Core;
 /// <summary>
 /// Generation 5 Entrée Forest static encounter
 /// </summary>
-public sealed record EncounterStatic5Entree(GameVersion Version, ushort Species, byte Level, byte Form, byte Gender, AbilityPermission Ability)
+public sealed record EncounterStatic5Entree(GameVersion Version, ushort Species, byte Level, byte Form, byte Gender, AbilityPermission Ability, GlobalLinkPromotion Promotion)
     : IEncounterable, IEncounterMatch, IEncounterConvertible<PK5>, IMoveset, IFixedGender
 {
     public byte Generation => 5;
@@ -12,7 +12,7 @@ public sealed record EncounterStatic5Entree(GameVersion Version, ushort Species,
     public Shiny Shiny => Shiny.Never;
     public bool IsShiny => false;
     public bool IsEgg => false;
-    public ushort EggLocation => 0;
+    ushort ILocation.EggLocation => 0;
     public ushort Location => 075;
     public string Name => $"Entree Forest Encounter ({Version})";
     public string LongName => Name;
@@ -21,8 +21,8 @@ public sealed record EncounterStatic5Entree(GameVersion Version, ushort Species,
 
     public Moveset Moves { get; }
 
-    public EncounterStatic5Entree(GameVersion version, ushort species, byte level, byte form, byte gender, AbilityPermission ability, ushort Move)
-        : this(version, species, level, form, gender, ability) => Moves = new Moveset(Move);
+    public EncounterStatic5Entree(GameVersion version, ushort species, byte level, byte form, byte gender, AbilityPermission ability, ushort Move, GlobalLinkPromotion promotion)
+        : this(version, species, level, form, gender, ability, promotion) => Moves = new Moveset(Move);
 
     #region Generating
 
@@ -32,8 +32,9 @@ public sealed record EncounterStatic5Entree(GameVersion Version, ushort Species,
 
     public PK5 ConvertToPKM(ITrainerInfo tr, EncounterCriteria criteria)
     {
-        int language = (int)Language.GetSafeLanguage456((LanguageID)tr.Language);
+        var language = (int)Promotion.GetSafeLanguage((LanguageID)tr.Language);
         var version = this.GetCompatibleVersion(tr.Version);
+        var trainerName = EncounterUtil.GetTrainerName(tr, language); // in case it is remapped by PGL promotion restriction
         var pi = PersonalTable.B2W2[Species];
         var pk = new PK5
         {
@@ -49,7 +50,7 @@ public sealed record EncounterStatic5Entree(GameVersion Version, ushort Species,
             Version = version,
             Language = language,
             OriginalTrainerGender = tr.Gender,
-            OriginalTrainerName = tr.OT,
+            OriginalTrainerName = trainerName,
 
             OriginalTrainerFriendship = pi.BaseFriendship,
 
@@ -84,23 +85,19 @@ public sealed record EncounterStatic5Entree(GameVersion Version, ushort Species,
 
     public bool IsMatchExact(PKM pk, EvoCriteria evo)
     {
-        if (!IsMatchEggLocation(pk))
+        if (!this.IsMatchEggLocation(pk))
             return false;
         if (pk.MetLocation != Location)
             return false;
         if (pk.MetLevel != Level)
             return false;
         if (Gender != FixedGenderUtil.GenderRandom && pk.Gender != Gender)
-            return true;
+            return false;
         if (Form != evo.Form && !FormInfo.IsFormChangeable(Species, Form, pk.Form, Context, pk.Context))
             return false;
+        if (!Promotion.CanBeReceivedBy((LanguageID)pk.Language))
+            return false;
         return true;
-    }
-
-    private bool IsMatchEggLocation(PKM pk)
-    {
-        var expect = pk is PB8 ? Locations.Default8bNone : EggLocation;
-        return pk.EggLocation == expect;
     }
 
     public EncounterMatchRating GetMatchRating(PKM pk) => EncounterMatchRating.Match;

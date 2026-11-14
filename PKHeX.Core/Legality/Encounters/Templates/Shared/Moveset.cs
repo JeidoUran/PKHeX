@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace PKHeX.Core;
@@ -38,22 +40,24 @@ public readonly record struct Moveset(ushort Move1, ushort Move2 = 0, ushort Mov
     public bool AnyAbove(ushort max) => Move1 > max || Move2 > max || Move3 > max || Move4 > max;
 
     /// <summary>
-    /// Returns the moveset as an array of four move IDs.
+    /// Gets a read-only span view of the moveset's four move IDs.
     /// </summary>
-    /// <returns>An array containing the four move IDs.</returns>
-    public ushort[] ToArray() => [Move1, Move2, Move3, Move4];
+    public ReadOnlySpan<ushort> AsSpan()
+    {
+        ref var self = ref Unsafe.AsRef(in this);
+        return MemoryMarshal.CreateReadOnlySpan(ref Unsafe.As<Moveset, ushort>(ref self), 4);
+    }
+
+    /// <summary>
+    /// Implicitly converts a <see cref="Moveset"/> to a <see cref="ReadOnlySpan{T}"/> of move IDs.
+    /// </summary>
+    public static implicit operator ReadOnlySpan<ushort>(in Moveset m) => m.AsSpan();
 
     /// <summary>
     /// Copies the moveset into the provided span.
     /// </summary>
     /// <param name="moves">The span to copy the moves into. Must be at least length 4.</param>
-    public void CopyTo(Span<ushort> moves)
-    {
-        moves[3] = Move4;
-        moves[2] = Move3;
-        moves[1] = Move2;
-        moves[0] = Move1;
-    }
+    public void CopyTo(Span<ushort> moves) => AsSpan().CopyTo(moves);
 
     /// <summary>
     /// Determines whether the moveset contains any of the specified moves.
@@ -153,5 +157,25 @@ public readonly record struct Moveset(ushort Move1, ushort Move2 = 0, ushort Mov
                 flags |= 1 << i;
         }
         return flags;
+    }
+
+    /// <summary>
+    /// Sets all specified move indexes in the provided span to true.
+    /// </summary>
+    /// <param name="result">Result to set indexes to <c>true</c> for.</param>
+    public void FlagMoves(Span<bool> result)
+    {
+        result[Move1] = true;
+        result[Move2] = true;
+        result[Move3] = true;
+        result[Move4] = true;
+    }
+
+    public void FlagMoves(Span<IndicatedSourceType> result, IndicatedSourceType value)
+    {
+        result[Move1] |= value;
+        result[Move2] |= value;
+        result[Move3] |= value;
+        result[Move4] |= value;
     }
 }

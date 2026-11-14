@@ -1,3 +1,5 @@
+using PKHeX.Core;
+
 namespace PKHeX.WinForms
 {
     partial class SAV_FestivalPlaza
@@ -41,7 +43,7 @@ namespace PKHeX.WinForms
             GB_Phrase = new System.Windows.Forms.GroupBox();
             CLB_Phrases = new System.Windows.Forms.CheckedListBox();
             B_AllPhrases = new System.Windows.Forms.Button();
-            TB_OTName = new System.Windows.Forms.TextBox();
+            TB_OTName = new PKHeX.WinForms.Controls.RenderedString();
             L_VisitorName = new System.Windows.Forms.Label();
             L_UsedStats = new System.Windows.Forms.Label();
             L_UsedFlags = new System.Windows.Forms.Label();
@@ -86,7 +88,7 @@ namespace PKHeX.WinForms
             TC_Editor = new System.Windows.Forms.TabControl();
             Tab_Overview = new System.Windows.Forms.TabPage();
             L_PlazaName = new System.Windows.Forms.Label();
-            TB_PlazaName = new System.Windows.Forms.TextBox();
+            TB_PlazaName = new PKHeX.WinForms.Controls.RenderedString();
             L_RankFC = new System.Windows.Forms.Label();
             Tab_Unlock = new System.Windows.Forms.TabPage();
             Tab_Facility = new System.Windows.Forms.TabPage();
@@ -288,7 +290,7 @@ namespace PKHeX.WinForms
             // 
             // TB_OTName
             // 
-            TB_OTName.Font = new System.Drawing.Font("Courier New", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            TB_OTName.DisplayContext = EntityContext.Gen7;
             TB_OTName.Location = new System.Drawing.Point(368, 92);
             TB_OTName.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             TB_OTName.MaxLength = 12;
@@ -816,7 +818,7 @@ namespace PKHeX.WinForms
             // 
             // TB_PlazaName
             // 
-            TB_PlazaName.Font = new System.Drawing.Font("Courier New", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            TB_PlazaName.DisplayContext = EntityContext.Gen7;
             TB_PlazaName.Location = new System.Drawing.Point(14, 200);
             TB_PlazaName.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             TB_PlazaName.MaxLength = 20;
@@ -1054,12 +1056,12 @@ namespace PKHeX.WinForms
             // 
             // ppkx1
             // 
-            ppkx1.BackColor = System.Drawing.Color.WhiteSmoke;
             ppkx1.ContextMenuStrip = mnu;
+            ppkx1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             ppkx1.Location = new System.Drawing.Point(21, 12);
             ppkx1.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             ppkx1.Name = "ppkx1";
-            ppkx1.Size = new System.Drawing.Size(68, 56);
+            ppkx1.Size = new System.Drawing.Size(70, 58);
             ppkx1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.AutoSize;
             ppkx1.TabIndex = 3;
             ppkx1.TabStop = false;
@@ -1113,24 +1115,24 @@ namespace PKHeX.WinForms
             // 
             // ppkx3
             // 
-            ppkx3.BackColor = System.Drawing.Color.WhiteSmoke;
             ppkx3.ContextMenuStrip = mnu;
+            ppkx3.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             ppkx3.Location = new System.Drawing.Point(10, 84);
             ppkx3.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             ppkx3.Name = "ppkx3";
-            ppkx3.Size = new System.Drawing.Size(68, 56);
+            ppkx3.Size = new System.Drawing.Size(70, 58);
             ppkx3.SizeMode = System.Windows.Forms.PictureBoxSizeMode.AutoSize;
             ppkx3.TabIndex = 5;
             ppkx3.TabStop = false;
             // 
             // ppkx2
             // 
-            ppkx2.BackColor = System.Drawing.Color.WhiteSmoke;
             ppkx2.ContextMenuStrip = mnu;
+            ppkx2.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             ppkx2.Location = new System.Drawing.Point(10, 16);
             ppkx2.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             ppkx2.Name = "ppkx2";
-            ppkx2.Size = new System.Drawing.Size(68, 56);
+            ppkx2.Size = new System.Drawing.Size(70, 58);
             ppkx2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.AutoSize;
             ppkx2.TabIndex = 4;
             ppkx2.TabStop = false;
@@ -1203,7 +1205,7 @@ namespace PKHeX.WinForms
         private System.Windows.Forms.GroupBox GB_Phrase;
         private System.Windows.Forms.Button B_AllPhrases;
         private System.Windows.Forms.CheckedListBox CLB_Phrases;
-        private System.Windows.Forms.TextBox TB_OTName;
+        private PKHeX.WinForms.Controls.RenderedString TB_OTName;
         private System.Windows.Forms.DateTimePicker CAL_FestaStartDate;
         private System.Windows.Forms.DateTimePicker CAL_FestaStartTime;
         private System.Windows.Forms.GroupBox GB_FestaStartTime;
@@ -1271,7 +1273,7 @@ namespace PKHeX.WinForms
         private System.Windows.Forms.NumericUpDown NUD_Trainer2;
         private System.Windows.Forms.NumericUpDown NUD_Trainer1;
         private System.Windows.Forms.Label L_PlazaName;
-        private System.Windows.Forms.TextBox TB_PlazaName;
+        private PKHeX.WinForms.Controls.RenderedString TB_PlazaName;
         private System.Windows.Forms.Label L_LuckyResult;
         private System.Windows.Forms.ComboBox CB_LuckyResult;
         private System.Windows.Forms.Button B_AgentGlass;

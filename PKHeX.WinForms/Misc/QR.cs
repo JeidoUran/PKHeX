@@ -11,14 +11,15 @@ public partial class QR : Form
 {
     private readonly PKM? Entity;
     private readonly Image icon;
-    private Image qr;
+    private Bitmap qr;
 
-    private readonly string[] Lines;
+    private readonly ReadOnlyMemory<string> Lines;
     private string extraText = string.Empty;
 
-    public QR(Image qr, Image icon, params string[] lines)
+    public QR(Bitmap qr, Image icon, params string[] lines)
     {
         InitializeComponent();
+        WinFormsUtil.TranslateInterface(this, Main.CurrentLanguage);
         this.qr = qr;
         this.icon = icon;
         Lines = lines;
@@ -27,9 +28,10 @@ public partial class QR : Form
         ResizeWindow();
     }
 
-    public QR(Image qr, Image icon, PKM pk, params string[] lines)
+    public QR(Bitmap qr, Image icon, PKM pk, params string[] lines)
     {
         InitializeComponent();
+        WinFormsUtil.TranslateInterface(this, Main.CurrentLanguage);
         this.qr = qr;
         this.icon = icon;
         Lines = lines;
@@ -43,7 +45,6 @@ public partial class QR : Form
 
         RefreshImage();
         ResizeWindow();
-        splitContainer1.SplitterDistance = 34;
     }
 
     private void ResizeWindow()
@@ -51,8 +52,10 @@ public partial class QR : Form
         var img = PB_QR.Image;
         if (img is null)
             return;
-        splitContainer1.Height = splitContainer1.Panel1.Height + img.Height;
-        splitContainer1.Width = img.Width;
+
+        var p2 = splitContainer1.Panel2;
+        Height += img.Height - p2.Height;
+        Width += img.Width - p2.Width;
     }
 
     private Bitmap ReloadQRData(PK7 pk7)
@@ -68,11 +71,11 @@ public partial class QR : Form
     {
         SuspendLayout();
         ResumeLayout();
-        var font = !Main.Unicode ? Font : FontUtil.GetPKXFont(8.25f);
+        var font = !Main.Unicode ? Font : FontUtil.GetFont(Entity?.Context ?? FontUtil.DefaultContext);
 
         var width = Math.Max(qr.Width, 370);
         var height = qr.Height + 50;
-        var img = QRImageUtil.GetQRImageExtended(font, qr, icon, width, height, Lines, extraText);
+        var img = QRImageUtil.GetQRImageExtended(font, qr, icon, width, height, Lines.Span, extraText);
         PB_QR.Image = img;
     }
 

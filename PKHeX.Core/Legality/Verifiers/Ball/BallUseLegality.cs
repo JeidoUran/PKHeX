@@ -27,7 +27,12 @@ internal static class BallUseLegality
     {
         1 => WildPokeBalls1,
         2 => WildPokeBalls2,
-        3 => WildPokeBalls3,
+        3 => version switch
+        {
+            GameVersion.FR or GameVersion.LG when ParseSettings.IsExclusivelyNintendoSwitchGBA() => WildPokeBalls3_NX,
+            GameVersion.FRX or GameVersion.LGX => WildPokeBalls3_NX,
+            _ => WildPokeBalls3,
+        },
         4 => GameVersion.HGSS.Contains(version) ? WildPokeBalls4_HGSS : WildPokeBalls4_DPPt,
         5 => WildPokeBalls5,
         6 => WildPokeballs6,
@@ -35,7 +40,7 @@ internal static class BallUseLegality
         8 when GameVersion.BDSP.Contains(version) => WildPokeBalls4_HGSS,
         8 when version is GameVersion.PLA => WildPokeBalls8a,
         8 => GameVersion.GO == version ? WildPokeballs8g_WithRaid : WildPokeballs8,
-        9 when version is GameVersion.ZA => WildPokeballs9a, // Dream Ball and Beast Ball not available
+        9 when version is GameVersion.ZA => WildPokeballs9a,
         9 => WildPokeballs9,
         _ => 0,
     };
@@ -80,6 +85,7 @@ internal static class BallUseLegality
     private const ulong WildPokeBalls1 = 1 << (int)Poke;
     private const ulong WildPokeBalls2 = WildPokeBalls1;
     private const ulong WildPokeBalls3 = WildPokeRegular | WildPokeEnhance3;
+    private const ulong WildPokeBalls3_NX = WildPokeBalls3 & (~(1u << (int)Premier)) & (~(1u << (int)Dive)); // Can't obtain without R/S/E.
     private const ulong WildPokeBalls4_DPPt = WildPokeBalls3 | WildPokeEnhance4;
     public const ulong WildPokeBalls4_HGSS = WildPokeBalls4_DPPt | WildPokeKurt4;
     private const ulong WildPokeBalls5 = WildPokeBalls4_DPPt;
@@ -96,5 +102,5 @@ internal static class BallUseLegality
     public const ulong WildPokeballs9 = WildPokeballs8;
     public const ulong WildPokeballs9PreDLC2 = WildPokeballs7 | WildPokeEnhance5; // Same as Gen7 + Dream
 
-    public const ulong WildPokeballs9a = WildPokeBalls4_HGSS | (1 << (int)Sport); // no Safari, Dream, Beast
+    public const ulong WildPokeballs9a = WildPokeballs9;
 }

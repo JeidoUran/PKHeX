@@ -103,7 +103,6 @@ public partial class SAV_PokedexLA : Form
 
         Editing = false;
         LB_Species.SelectedIndex = 0;
-        CB_Species.KeyDown += WinFormsUtil.RemoveDropCB;
         CanSave = true;
     }
 
@@ -471,7 +470,7 @@ public partial class SAV_PokedexLA : Form
         GetEntry(lastIndex, lastForm);
         ResumeLayout();
         Editing = false;
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private void B_AdvancedResearch_Click(object sender, EventArgs e)

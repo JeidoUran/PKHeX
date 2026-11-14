@@ -42,7 +42,6 @@ public partial class SAV_PokedexORAS : Form
         CHK_NationalDexActive.Checked = Zukan.IsNationalDexMode;
         CHK_NationalDexUnlocked.CheckedChanged += (_, _) => CHK_NationalDexActive.Checked = CHK_NationalDexUnlocked.Checked;
         TB_Spinda.Text = Zukan.Spinda.ToString("X8");
-        CB_Species.KeyDown += WinFormsUtil.RemoveDropCB;
     }
 
     private readonly CheckBox[] CP;
@@ -114,7 +113,6 @@ public partial class SAV_PokedexORAS : Form
 
     private void GetEntry(bool skipFormRepop = false)
     {
-        // Load Bools for the data
         int pk = species;
 
         L_Spinda.Visible = TB_Spinda.Visible = pk == (int)Species.Spinda;
@@ -235,7 +233,7 @@ public partial class SAV_PokedexORAS : Form
         var language = (LanguageID)SAV.Language;
         Zukan.GiveAll(species, ModifierKeys != Keys.Alt, ModifierKeys.HasFlag(Keys.Shift), language, ModifierKeys.HasFlag(Keys.Control));
         GetEntry(skipFormRepop: true);
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
 
         if (Zukan.GetCaught(species) && Zukan.GetCountSeen(species) == 0)
             MT_Seen.Text = 1.ToString();
@@ -273,7 +271,7 @@ public partial class SAV_PokedexORAS : Form
         if (sender == mnuCaughtAll || sender == mnuComplete)
             Zukan.CaughtAll(language, allLanguages: ModifierKeys.HasFlag(Keys.Control));
         GetEntry(skipFormRepop: true);
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private void UpdateDisplayedForm(object sender, ItemCheckEventArgs e)
@@ -309,6 +307,6 @@ public partial class SAV_PokedexORAS : Form
         else if (sender == mnuFormAll)
             Zukan.SetFormsSeen(shinyToo: ModifierKeys.HasFlag(Keys.Shift));
         GetEntry(skipFormRepop: true);
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 }

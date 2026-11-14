@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using static PKHeX.Core.EntityConverterResult;
 using static PKHeX.Core.GameVersion;
 
@@ -20,6 +21,8 @@ public static class EntityConverter
     /// </summary>
     public static EntityRejuvenationSetting RejuvenateHOME { get; set; } = EntityRejuvenationSetting.MissingDataHOME;
 
+    public static bool IsPreferredTransferVirtualHOME { get; set; }
+
     /// <summary>
     /// Post-conversion rejuvenation worker to restore lost values.
     /// </summary>
@@ -30,26 +33,23 @@ public static class EntityConverter
     /// </summary>
     public static IHomeStorage HOME { get; set; } = new HomeStorageFacade();
 
-    private static GameVersion _vc1 = RD;
-    private static GameVersion _vc2 = SI;
-
     /// <summary>
     /// Default source game for trading from PK2 to PK7.
     /// </summary>
     public static GameVersion VirtualConsoleSourceGen1
     {
-        get => _vc1;
-        set => _vc1 = (value is RD or BU or GN or YW) ? value : RD;
-    }
+        get;
+        set => field = (value is RD or BU or GN or YW) ? value : RD;
+    } = RD;
 
     /// <summary>
     /// Default source game for trading from PK2 to PK7.
     /// </summary>
     public static GameVersion VirtualConsoleSourceGen2
     {
-        get => _vc2;
-        set => _vc2 = (value is GD or SI or C) ? value : SI;
-    }
+        get;
+        set => field = (value is GD or SI or C) ? value : SI;
+    } = SI;
 
     /// <summary>
     /// Retain the Met Date when transferring from Gen4 to Gen5.
@@ -60,8 +60,8 @@ public static class EntityConverter
     /// <summary>
     /// Checks if the input <see cref="PKM"/> file is capable of being converted to the desired format.
     /// </summary>
-    /// <param name="pk"></param>
-    /// <param name="format"></param>
+    /// <param name="pk">PKM to convert</param>
+    /// <param name="format">Format to convert to</param>
     /// <returns>True if it can be converted to the requested format value.</returns>
     public static bool IsConvertibleToFormat(PKM pk, byte format)
     {
@@ -86,6 +86,15 @@ public static class EntityConverter
         {
             result = None;
             return pk;
+        }
+
+        if (pk is PKH pkh)
+        {
+            if (TryConvertFromHOME(pkh, destType, out var x))
+            {
+                result = Success;
+                return x;
+            }
         }
 
         var entity = ConvertPKM(pk, destType, fromType, out result);
@@ -157,7 +166,7 @@ public static class EntityConverter
         // Sequential
         PK1 pk1 => pk1.ConvertToPK2(),
         PK2 pk2 => pk2.ConvertToPK1(),
-        PK3 pk3 => pk3.ConvertToPK4(),
+        PK3 pk3 when !IsOnlyVC3(pk3, destType) => pk3.ConvertToPK4(),
         PK4 pk4 => pk4.ConvertToPK5(),
         PK5 pk5 => pk5.ConvertToPK6(),
         PK6 pk6 => pk6.ConvertToPK7(),
@@ -171,6 +180,33 @@ public static class EntityConverter
 
         _ => GetFinalResult(pk, destType, ref result),
     };
+
+    private static bool IsOnlyVC3(PK3 pk, Type destType)
+    {
+        // Only specific events are available on the Nintendo Switch Gen3 Virtual Console.
+        // If we're not transferring to HOME, then permit it through Gen4+ as a bypass.
+        var type = PKH.GetType(destType);
+        if (type == HomeGameDataFormat.None)
+            return false;
+
+        if (IsPreferredTransferVirtualHOME)
+            return true;
+
+        // Deoxys @ Birth Island(FireRed/ LeafGreen) -Never distributed in Japan during GBA Cart era. NX virtual console added for all.
+        if (pk is { Species: (int)Species.Deoxys, MetLocation: 200, Language: (int)LanguageID.Japanese })
+            return true;
+        // TODO HOME RSE -- Mew?
+        return false;
+    }
+
+    private static bool TryConvertFromHOME(PKH pkh, Type destType, [NotNullWhen(true)] out PKM? result)
+    {
+        result = null;
+        var type = PKH.GetType(destType);
+        if (type is not HomeGameDataFormat.None)
+            result = pkh.ConvertToPKM(type);
+        return result != null;
+    }
 
     private static PKM? GetFinalResult(PKM pk, Type destType, ref EntityConverterResult result)
     {
@@ -321,14 +357,17 @@ public static class EntityConverter
     /// <summary>
     /// Checks if a <see cref="GBPKM"/> is incompatible with the Generation 1/2 destination environment.
     /// </summary>
+    /// <param name="pk">Target type PKM with misc properties accessible for checking.</param>
+    /// <param name="destJapanese">Whether the destination environment is Japanese</param>
+    /// <param name="srcJapanese">Whether the source PKM is Japanese</param>
     public static bool IsCompatibleGB(PKM pk, bool destJapanese, bool srcJapanese)
     {
         if (pk.Format > 2)
-            return true;
+            return true; // Upwards transfers are unaffected by language, and Gen3+ can represent all languages.
         if (destJapanese == srcJapanese)
-            return true;
+            return true; // Can trade between same language sets.
         if (pk is SK2 sk2 && sk2.IsPossible(srcJapanese))
-            return true;
+            return true; // Language differentiation
         return false;
     }
 }

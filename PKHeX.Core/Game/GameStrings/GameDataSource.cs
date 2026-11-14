@@ -100,6 +100,7 @@ public sealed class GameDataSource
     /// <remarks>Most recent games are at the top, loosely following Generation groups.</remarks>
     private static ReadOnlySpan<byte> OrderedVersionArray =>
     [
+        53,     // Champions
         52,     // 9 Z-A
         50, 51, // 9 S/V
         47,     // 8 PLA
@@ -118,10 +119,12 @@ public sealed class GameDataSource
         04, 05, // 3 FR/LG
         15,     // 3 Colosseum & XD
 
+        56, 57, // 8vc3 (Gen3 VC)
         39, 40, 41, // 7vc2 (Gen2 VC)
         35, 36, 37, 38, // 7vc1 (Gen1 VC)
         34, // 7go
 
+        // Not including Wi/Wa
         00,
     ];
 

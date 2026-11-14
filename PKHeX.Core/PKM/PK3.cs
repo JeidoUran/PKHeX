@@ -16,10 +16,12 @@ public sealed class PK3 : G3PKM, ISanityChecksum
 
     public PK3() : base(PokeCrypto.SIZE_3PARTY) { }
     public PK3(Memory<byte> data) : base(DecryptParty(data)) { }
+    protected override void EncryptStored(Span<byte> stored) => PokeCrypto.Encrypt3(stored);
+    protected override void EncryptParty(Span<byte> party) { }
 
     private static Memory<byte> DecryptParty(Memory<byte> data)
     {
-        PokeCrypto.DecryptIfEncrypted3(ref data);
+        PokeCrypto.DecryptIfEncrypted3(data.Span);
         if (data.Length >= PokeCrypto.SIZE_3PARTY)
             return data;
 
@@ -184,6 +186,10 @@ public sealed class PK3 : G3PKM, ISanityChecksum
     public override bool FatefulEncounter { get => RIB0 >> 31 == 1; set => RIB0 = (RIB0 & ~(1 << 31)) | (uint)(value ? 1 << 31 : 0); }
     public override int RibbonCount => BitOperations.PopCount(RIB0 & 0b00000111_11111111_11111111_11111111);
 
+    // derived ribbon counts for API ease-of-use
+    public byte RibbonCountMemoryContest => (byte)(RibbonCountG3Cool + RibbonCountG3Beauty + RibbonCountG3Cute + RibbonCountG3Smart + RibbonCountG3Tough);
+    public byte RibbonCountMemoryBattle => (byte)((RibbonWinning ? 1 : 0) + (RibbonVictory ? 1 : 0));
+
     #endregion
 
     #region Battle Stats
@@ -198,12 +204,6 @@ public sealed class PK3 : G3PKM, ISanityChecksum
     public override int Stat_SPA { get => ReadUInt16LittleEndian(Data[0x60..]); set => WriteUInt16LittleEndian(Data[0x60..], (ushort)value); }
     public override int Stat_SPD { get => ReadUInt16LittleEndian(Data[0x62..]); set => WriteUInt16LittleEndian(Data[0x62..], (ushort)value); }
     #endregion
-
-    protected override byte[] Encrypt()
-    {
-        RefreshChecksum();
-        return PokeCrypto.EncryptArray3(Data);
-    }
 
     private ushort CalculateChecksum() => Checksums.Add16(Data[0x20..PokeCrypto.SIZE_3STORED]);
 
@@ -302,6 +302,7 @@ public sealed class PK3 : G3PKM, ISanityChecksum
             FatefulEncounter = FatefulEncounter,
         };
 
+        // Transfer into D/P.
         // Yay for reusing string buffers! The game allocates a buffer and reuses it when creating strings.
         // Trash from the {unknown source} is currently in buffer. Set it to the Nickname region.
         var trash = StringConverter345.GetTrashBytes(pk4.Language);
@@ -309,10 +310,15 @@ public sealed class PK3 : G3PKM, ISanityChecksum
         trash.CopyTo(nickTrash[4..]); // min of 1 char and terminator, ignore first 2.
 
         if (IsEgg)
+        {
+            // Force hatch.
             pk4.Nickname = SpeciesName.GetSpeciesNameGeneration(pk4.Species, pk4.Language, 4);
+        }
         else
+        {
+            pk4.IsNicknamed = IsNicknamed;
             StringConverter345.TransferGlyphs34(NicknameTrash, Language, Japanese ? 5 : 10, nickTrash);
-        pk4.IsNicknamed = !IsEgg && IsNicknamed;
+        }
 
         // Trash from the current string (Nickname) is in our string buffer. Slap the OT name over-top.
         var destOT = pk4.OriginalTrainerTrash;
@@ -327,8 +333,7 @@ public sealed class PK3 : G3PKM, ISanityChecksum
                 pk4.HeldItem = item;
         }
 
-        // Remove HM moves
-        ReadOnlySpan<ushort> banned = PersonalInfo3.MachineMovesHidden;
+        var banned = PersonalInfo3.MachineMovesHidden;
         if (banned.Contains(Move1)) pk4.Move1 = 0;
         if (banned.Contains(Move2)) pk4.Move2 = 0;
         if (banned.Contains(Move3)) pk4.Move3 = 0;
@@ -392,4 +397,15 @@ public sealed class PK3 : G3PKM, ISanityChecksum
     public override int GetStringLength(ReadOnlySpan<byte> data)
         => TrashBytes8.GetStringLength(data);
     public override int GetBytesPerChar() => 1;
+
+    public override void PrepareNickname() => GetNicknamePrefillRegion().Fill(StringConverter3.TerminatorByte);
+
+    public Span<byte> GetNicknamePrefillRegion()
+    {
+        // Japanese only fills the first 5+1 bytes; everything else is trash.
+        // International games are 10 chars (full buffer) max; implicit terminator if full.
+        if (Japanese)
+            return NicknameTrash[..6];
+        return NicknameTrash;
+    }
 }

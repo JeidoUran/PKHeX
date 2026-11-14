@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace PKHeX.Core;
 
@@ -19,7 +20,8 @@ public static class Legal
 
     internal const int MaxSpeciesID_3 = 386;
     internal const int MaxMoveID_3 = 354;
-    internal const int MaxItemID_3 = 374;
+    internal const int MaxItemID_3_RS = 346;
+    internal const int MaxItemID_3_FRLG = 374;
     internal const int MaxItemID_3_E = 376;
     internal const int MaxItemID_3_COLO = 547;
     internal const int MaxItemID_3_XD = 593;
@@ -132,15 +134,26 @@ public static class Legal
     internal const ushort MaxItemID_9_T2 = 2557; // Briar’s Book
     internal const ushort MaxAbilityID_9_T2 = (int)Ability.PoisonPuppeteer;
 
-    internal const int MaxSpeciesID_9a = (int)Species.Falinks;
-    internal const int MaxMoveID_9a = (int)Move.NihilLight;
-    internal const int MaxItemID_9a = 2634; // Blue Canari Plush
-    internal const int MaxAbilityID_9a = (int)Ability.PoisonPuppeteer;
-    internal const int MaxBallID_9a = (int)Ball.LAOrigin;
+    internal const int MaxSpeciesID_9a = MaxSpeciesID_9a_MD;
+    internal const int MaxMoveID_9a = MaxMoveID_9a_IK;
+    internal const int MaxItemID_9a = MaxItemID_9a_MD;
+    internal const int MaxAbilityID_9a = MaxAbilityID_9a_IK;
+    internal const int MaxBallID_9a = MaxBallID_9a_IK;
+
+    internal const int MaxSpeciesID_9a_IK = (int)Species.Falinks;
+    internal const int MaxMoveID_9a_IK = (int)Move.NihilLight;
+    internal const int MaxItemID_9a_IK = 2634; // Blue Canari Plush
+    internal const int MaxAbilityID_9a_IK = (int)Ability.PoisonPuppeteer;
+    internal const int MaxBallID_9a_IK = (int)Ball.LAOrigin;
+
+    internal const int MaxSpeciesID_9a_MD = (int)Species.Gholdengo;
+    internal const int MaxMoveID_9a_MD = MaxMoveID_9a_IK;
+    internal const int MaxItemID_9a_MD = 2684; // Canari Bread
+    internal const int MaxAbilityID_9a_MD = MaxAbilityID_9a_IK;
 
     internal const int MaxBallID_9 = (int)Ball.LAOrigin;
-    internal const GameVersion MaxGameID_HOME = GameVersion.VL; // TODO HOME ZA - Replace with ZA when HOME; if backwards transfer is allowed. If prevented, rename epoch as HOME1.
-    internal const GameVersion MaxGameID_HOME2 = GameVersion.ZA;
+    internal const GameVersion MaxGameID_HOME = GameVersion.LGX;
+    internal const GameVersion MaxGameID_HOME2 = GameVersion.LGX;
 
     internal static readonly ushort[] HeldItems_GSC = ItemStorage2.GetAllHeld();
     internal static readonly ushort[] HeldItems_RS = ItemStorage3RS.GetAllHeld();
@@ -173,6 +186,8 @@ public static class Legal
         _ => -1,
     };
 
+    internal static int GetMaxLanguageIDHOME() => (int)LanguageID.SpanishL;
+
     /// <summary>
     /// Checks if the relearn moves should be wiped.
     /// </summary>
@@ -182,7 +197,7 @@ public static class Legal
     {
         PA8 pa8 => !pa8.LA,
         PB8 pb8 => !pb8.BDSP,
-        PK8 pk8 => pk8.IsSideTransfer || pk8.BattleVersion != 0,
+        PK8 pk8 => pk8.BattleVersion != 0 || pk8.IsSideTransfer && (pk is not { Species: (int)Species.Celebi, VC3: true }),
         PK9 pk9 => !(pk9.SV || pk9 is { IsEgg: true, Version: 0 }),
         PA9 pa9 => !pa9.ZA,
         _ => false,
@@ -291,4 +306,40 @@ public static class Legal
         if (IVs.SPD != pk.IV_SPD) return false;
         return true;
     }
+
+    /// <summary>
+    /// For a species with a potentially valid FR/LG origin encounter, flag if not permitted.
+    /// </summary>
+    public static bool IsForeignFRLG(ushort species) => IsForeign(ForeignFRLG, species, ShiftFRLG);
+
+    private static bool IsForeign(ReadOnlySpan<byte> bitSet, int species, [ConstantExpected] int shift)
+    {
+        species -= shift;
+        var offset = species >> 3;
+        if ((uint)offset >= bitSet.Length)
+            return false;
+
+        var bit = species & 7;
+        if ((bitSet[offset] & (1 << bit)) != 0)
+            return true;
+        return false;
+    }
+
+    private const ushort ShiftFRLG = 151; // First unavailable Species (Mew)
+
+    /// <summary>
+    /// Bitset representing species that are considered unobtainable in FR/LG.
+    /// Includes foreign transfers and time-of-day evolutions.
+    /// First species is Mew (151), last is Deoxys (386).
+    /// </summary>
+    /// <remarks>
+    /// Source: https://www.serebii.net/fireredleafgreen/unobtainable.shtml
+    /// </remarks>
+    private static ReadOnlySpan<byte> ForeignFRLG =>
+    [
+        0xFF, 0x33, 0x18, 0x60, 0x04, 0x63, 0x50, 0x0D,
+        0x84, 0x40, 0x00, 0x04, 0xF0, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xF7, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFD, 0xFF, 0xFF, 0x07,
+    ];
 }

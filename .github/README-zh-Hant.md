@@ -9,7 +9,7 @@ PKHeX
 * 含 GameCube 寶可夢游戲儲存資料檔之 GameCube 記憶卡檔 (\*.raw, \*.bin)
 * 單個寶可夢資料檔 (.pk\*, \*.ck3, \*.xk3, \*.pb7, \*.sk2, \*.bk4, \*.rk4)
 * 神秘禮物檔 (\*.pgt, \*.pcd, \*.pgf, .wc\*) 並轉換至 .pk\*
-* 匯入 Go 公園檔 (\*.gp1) 並轉換至 .pb7
+* 匯入 Go Park檔 (\*.gp1) 並轉換至 .pb7
 * 從已解密 3DS 對戰視訊中匯入隊伍信息
 * 將寶可夢從當前世代往後傳送，並順次轉換檔案格式
 
@@ -28,9 +28,9 @@ PKHeX 所讀取檔案須未經主機唯一密鑰加密，因而請使用儲存�
 
 ## 構建
 
-PKHeX 係 Windows 窗體應用程式，其須依賴於 [.NET 9.0](https://dotnet.microsoft.com/download/dotnet/9.0)。
+PKHeX 係 Windows 窗體應用程式，其須依賴於 [.NET 10.0](https://dotnet.microsoft.com/download/dotnet/10.0)。
 
-程式可透過任意支援 C# 13 之編譯器構建。
+程式可透過任意支援 C# 14 之編譯器構建。
 
 ### 構建配置
 
@@ -42,7 +42,7 @@ PKHeX 之 QR 碼生成庫來源於 [QRCoder](https://github.com/codebude/QRCoder
 
 PKHeX 之異色精靈圖示集合庫來源於 [pokesprite](https://github.com/msikma/pokesprite)， 其以 [MIT 許可證](https://github.com/msikma/pokesprite/blob/master/LICENSE) 進行分發。
 
-PKHeX 之「寶可夢傳説：阿爾宙斯」精靈圖示集合庫來源於 [National Pokédex - Icon Dex](https://www.deviantart.com/pikafan2000/art/National-Pokedex-Version-Delta-Icon-Dex-824897934) 項目，及其多位各界協作者和貢獻者。
+PKHeX 之「寶可夢傳說 阿爾宙斯」精靈圖示集合庫來源於 [National Pokédex - Icon Dex](https://www.deviantart.com/pikafan2000/art/National-Pokedex-Version-Delta-Icon-Dex-824897934) 項目，及其多位各界協作者和貢獻者。
 ### IDE
 
 PKHeX 可透過如 [Visual Studio](https://visualstudio.microsoft.com/downloads/) 等各類 IDE ，開啓 .sln 或 .csproj 檔案以打開。

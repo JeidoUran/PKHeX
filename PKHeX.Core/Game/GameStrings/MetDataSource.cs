@@ -146,6 +146,8 @@ public sealed class MetDataSource(GameStrings s)
 
         // Add in the BDSP+PLA magic met locations.
         locations.Add(new ComboItem($"{s.EggName} (HOME)", LocationsHOME.SWSHEgg));
+        locations.Add(new ComboItem(s.gamelist[(int)FRX], LocationsHOME.SWFR));
+        locations.Add(new ComboItem(s.gamelist[(int)LGX], LocationsHOME.SHLG));
         locations.Add(new ComboItem(s.gamelist[(int)SL], LocationsHOME.SWSL));
         locations.Add(new ComboItem(s.gamelist[(int)VL], LocationsHOME.SHVL));
         locations.Add(new ComboItem(s.gamelist[(int)BD], LocationsHOME.SWBD));
@@ -167,6 +169,7 @@ public sealed class MetDataSource(GameStrings s)
 
         // Add in the BDSP+PLA magic met locations.
         locations.Add(new ComboItem($"{s.EggName} (HOME)", LocationsHOME.SWSHEgg));
+        // No remaps for the other version IDs due to the BD/SP <-> SW/SH overwrite precedence being fixed prior to S/V.
         locations.Add(new ComboItem(s.gamelist[(int)BD], LocationsHOME.SWBD));
         locations.Add(new ComboItem(s.gamelist[(int)SP], LocationsHOME.SHSP));
         locations.Add(new ComboItem(s.gamelist[(int)PLA], LocationsHOME.SWLA));
@@ -177,6 +180,7 @@ public sealed class MetDataSource(GameStrings s)
     private static List<ComboItem> CreateGen8b(GameStrings s)
     {
         // Manually add invalid (-1) location from SW/SH as ID 65535
+        // If this list is used outside BD/SP, be sure to remap Jubilife's 00000 to 00658.
         var locations = new List<ComboItem> { new(s.Gen8.Met0[0], Locations.Default8bNone) };
         Util.AddCBWithOffset(locations, s.Gen8b.Met6, 60000, Locations.Daycare5);
         Util.AddCBWithOffset(locations, s.Gen8b.Met3, 30000, Locations.LinkTrade6);
@@ -230,20 +234,50 @@ public sealed class MetDataSource(GameStrings s)
             result = GetLocationListInternal(version, context);
 
         // Insert the BD/SP none location if the format requires it.
-        if (context is EntityContext.Gen8b && !BDSP.Contains(version))
+        if (BDSP.Contains(version))
         {
-            var bdsp = new ComboItem[result.Count + 1];
-            var none = bdsp[0] = result[0];
-            bdsp[1] = new ComboItem($"{none.Text} (BD/SP)", Locations.Default8bNone);
-            var dest = bdsp.AsSpan(2);
-            if (result is ComboItem[] arr)
-                arr.AsSpan(1).CopyTo(dest);
-            else if (result is List<ComboItem> list)
-                CollectionsMarshal.AsSpan(list)[1..].CopyTo(dest);
-            return bdsp;
+            if (context is not EntityContext.Gen8b)
+                return GetExternalBDSP(result);
+        }
+        else
+        {
+            if (context is EntityContext.Gen8b)
+                return GetInternalBDSP(result);
         }
 
         return result;
+    }
+
+    private static IReadOnlyList<ComboItem> GetInternalBDSP(IReadOnlyList<ComboItem> result)
+    {
+        // BD/SP context, insert the -1 as (None) location
+        var bdsp = new ComboItem[result.Count + 1];
+        var none = bdsp[0] = result[0];
+        bdsp[1] = new ComboItem($"{none.Text} (BD/SP)", Locations.Default8bNone);
+        var dest = bdsp.AsSpan(2);
+        if (result is ComboItem[] arr)
+            arr.AsSpan(1).CopyTo(dest);
+        else if (result is List<ComboItem> list)
+            CollectionsMarshal.AsSpan(list)[1..].CopyTo(dest);
+
+        return bdsp;
+    }
+
+    private IReadOnlyList<ComboItem> GetExternalBDSP(IReadOnlyList<ComboItem> result)
+    {
+        // Outside BD/SP context, slight adjustment for 0.
+        var bdsp = new ComboItem[result.Count];
+        if (result is ComboItem[] arr)
+            arr.CopyTo(bdsp);
+        else if (result is List<ComboItem> list)
+            list.CopyTo(bdsp);
+
+        var zeroJubilife = Array.FindIndex(bdsp, z => z.Value == 0);
+        // Swap Jubilife's 0 value to the sanitized placeholder.
+        bdsp[zeroJubilife] = bdsp[zeroJubilife] with { Value = Locations8b.TransferPlaceholder0 };
+        bdsp[0] = MetGen8[0]; // reset 0 to (None)
+
+        return bdsp;
     }
 
     private IReadOnlyList<ComboItem> GetLocationListInternal(GameVersion version, EntityContext context) => version switch
@@ -267,7 +301,8 @@ public sealed class MetDataSource(GameStrings s)
            or GD or SI or C => Partition2(MetGen7, IsMetLocation7USUM),
 
         GP or GE or GO => Partition2(MetGen7GG, IsMetLocation7GG),
-        SW or SH => Partition2(MetGen8, IsMetLocation8SWSH),
+        SW or SH or FRX or LGX
+                 => Partition2(MetGen8, IsMetLocation8SWSH),
         BD or SP => Partition2(MetGen8b, IsMetLocation8BDSP),
         PLA      => Partition2(MetGen8a, IsMetLocation8LA),
         SL or VL => Partition2(MetGen9, IsMetLocation9SV),
@@ -320,7 +355,7 @@ public sealed class MetDataSource(GameStrings s)
     private IReadOnlyList<ComboItem> GetLocationListModified(GameVersion version, EntityContext context) => version switch
     {
         <= CXD when context == EntityContext.Gen4 => MetGen4Transfer ??= CreateGen4Transfer(),
-        < X when context.Generation() >= 5 => MetGen5Transfer ??= CreateGen5Transfer(),
-        _ => [],
+        < X when context.Generation >= 5 => MetGen5Transfer ??= CreateGen5Transfer(),
+        _ => [MetGen3[0]],
     };
 }

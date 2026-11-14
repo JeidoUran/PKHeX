@@ -15,7 +15,7 @@ public sealed record EncounterTrade3 : IEncounterable, IEncounterMatch, IFixedTr
     public bool IsEgg => false;
     public Ball FixedBall => Ball.Poke;
     public bool IsShiny => false;
-    public ushort EggLocation => 0;
+    ushort ILocation.EggLocation => 0;
     public bool IsFixedTrainer => true;
     public bool IsFixedNickname => true;
     public Nature Nature => (Nature)(PID % 25);
@@ -173,6 +173,9 @@ public sealed record EncounterTrade3 : IEncounterable, IEncounterMatch, IFixedTr
         if (pk.Context == EntityContext.Gen3)
             return trainer.SequenceEqual(name);
 
+        if (pk.VC3) // "Correct" string transfer (non-glitched)
+            return trainer.SequenceEqual(name);
+
         Span<char> tmp = stackalloc char[name.Length];
         StringConverter345.TransferGlyphs34(name, language, tmp);
         return trainer.SequenceEqual(tmp);
@@ -188,6 +191,9 @@ public sealed record EncounterTrade3 : IEncounterable, IEncounterMatch, IFixedTr
             return false;
         var name = names[language];
         if (pk.Context == EntityContext.Gen3)
+            return nickname.SequenceEqual(name);
+
+        if (pk.VC3) // "Correct" string transfer (non-glitched)
             return nickname.SequenceEqual(name);
 
         Span<char> tmp = stackalloc char[name.Length];

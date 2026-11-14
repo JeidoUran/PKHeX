@@ -47,20 +47,11 @@ public sealed class TransferVerifier : Verifier
             var pi = data.PersonalInfo;
             var growth = pi.EXPGrowth;
             var nature = pk.Nature;
-            bool valid = VerifyVCNature(growth, nature);
+            bool valid = Experience.IsValidNatureMetLevel2(growth, nature);
             if (!valid)
                 data.AddLine(GetInvalid(TransferNature));
         }
     }
-
-    private static bool VerifyVCNature(byte growth, Nature nature) => growth switch
-    {
-        // exp % 25 with a limited amount of EXP does not allow for every nature
-        0 => (0x01FFFF03u & (1u << (byte)nature)) != 0, // MediumFast -- Can't be Brave, Adamant, Naughty, Bold, Docile, or Relaxed
-        4 => (0x001FFFC0u & (1u << (byte)nature)) != 0, // Fast -- Can't be Gentle, Sassy, Careful, Quirky, Hardy, Lonely, Brave, Adamant, Naughty, or Bold
-        5 => (0x01FFFCFFu & (1u << (byte)nature)) != 0, // Slow -- Can't be Impish or Lax
-        _ => true,
-    };
 
     private static void VerifyVCShinyXorIfShiny(LegalityAnalysis data)
     {
@@ -84,8 +75,30 @@ public sealed class TransferVerifier : Verifier
 
     public void VerifyTransferLegalityG3(LegalityAnalysis data)
     {
+        // When transferred from Gen3=>HOME, must match the NX Virtual Console pattern and restrictions.
+        // Otherwise, it must have been transferred through Pal Park (to Gen4) and Transporter (to Gen5+).
         var pk = data.Entity;
-        if (pk.Format == 4) // Pal Park (3->4)
+        if (pk.VC3)
+        {
+            if (pk.MetLocation != LocationsHOME.VirtualConsole3)
+                data.AddLine(GetInvalid(TransferMetLocation, LocationsHOME.VirtualConsole3));
+
+            // HOME server sets the met date on transfer to the user's local time.
+            // The earliest that a FR/LG entity may transfer was 2026/10/06.
+            if (pk.MetDate is not { } x || x < new DateOnly(2026, 10, 6))
+                data.AddLine(GetInvalid(DateOutsideDistributionWindow));
+
+            // TODO HOME RSE
+            // When RSE is legal, we can use these when determining the correct met date threshold instead of flagging.
+            // Flag any traded foreign species that were bred as eggs.
+            if (Legal.IsForeignFRLG(data.EncounterMatch.Species))
+                data.AddLine(GetInvalid(TradeNotAvailable));
+
+            // Flag any unavailable balls that were transferred.
+            if ((Ball)pk.Ball is Ball.Dive or Ball.Premier)
+                data.AddLine(GetInvalid(BallUnavailable));
+        }
+        else if (pk.Format == 4) // Pal Park (3->4)
         {
             if (pk.MetLocation != Locations.Transfer3)
                 data.AddLine(GetInvalid(EggLocationPalPark, Locations.Transfer3));
@@ -101,6 +114,7 @@ public sealed class TransferVerifier : Verifier
     {
         var pk = data.Entity;
         ushort loc = pk.MetLocation;
+        // Anything can be transferred via Transporter.
         if (loc == Locations.Transfer4)
             return;
 
@@ -184,25 +198,21 @@ public sealed class TransferVerifier : Verifier
             // - Transfer a 0-Tracker pk to HOME to get assigned a valid Tracker via the game it originated from.
             // - Don't make one up.
         }
-
-        if (pk.ZA != pk is PA9) // TODO: ZA HOME Compatibility - flag in/out transfers for now.
-            data.AddLine(GetInvalid(TransferBad));
     }
 
     public void VerifyVCEncounter(PKM pk, IEncounterTemplate original, EncounterTransfer7 transfer, LegalityAnalysis data)
     {
         if (pk.MetLocation != transfer.Location)
-            data.AddLine(GetInvalid(TransferMetLocation));
+            data.AddLine(GetInvalid(TransferMetLocation, transfer.Location));
 
-        var expectEgg = pk is PB8 ? Locations.Default8bNone : transfer.EggLocation;
-        if (pk.EggLocation != expectEgg)
+        if (!transfer.IsMatchEggLocation(pk))
             data.AddLine(GetInvalid(EggLocationNone));
 
         // Flag Moves that cannot be transferred
-        if (original is EncounterStatic2 { DizzyPunchEgg: true}) // Dizzy Punch Gifts
-            FlagIncompatibleTransferMove(pk, data.Info.Moves, 146, 2); // can't have Dizzy Punch at all
+        if (original is EncounterStatic2 { IsDizzyPunchEgg: true }) // Dizzy Punch Gifts
+            FlagIncompatibleTransferMove(pk, data.Info.Moves, 146, EntityContext.Gen2); // can't have Dizzy Punch at all
 
-        bool checkShiny = pk.VC2 || original.Generation == 2 || MoveInfo.IsAnyFromGeneration(2, data.Info.Moves);
+        bool checkShiny = pk.VC2 || original.Generation == 2 || MoveInfo.IsAnyFromGeneration(EntityContext.Gen2, data.Info.Moves);
         if (!checkShiny)
             return;
 
@@ -220,13 +230,13 @@ public sealed class TransferVerifier : Verifier
         }
     }
 
-    private static void FlagIncompatibleTransferMove(PKM pk, Span<MoveResult> parse, ushort move, byte generation)
+    private static void FlagIncompatibleTransferMove(PKM pk, Span<MoveResult> parse, ushort move, EntityContext context)
     {
         int index = pk.GetMoveIndex(move);
         if (index < 0)
             return; // doesn't have move
 
-        if (parse[index].Generation == generation) // not obtained from a future gen
+        if (parse[index].Context == context) // not obtained from a future gen
             parse[index] = MoveResult.Unobtainable(0);
     }
 }

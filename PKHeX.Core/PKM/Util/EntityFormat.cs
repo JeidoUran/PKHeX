@@ -25,15 +25,17 @@ public static class EntityFormat
 
     private static EntityFormatDetected GetFormatInternal(ReadOnlySpan<byte> data) => data.Length switch
     {
-        SIZE_1JLIST or SIZE_1ULIST    => FormatPK1,
-        SIZE_2JLIST or SIZE_2ULIST    => FormatPK2,
+        SIZE_1JLIST or SIZE_1ULIST    => FormatPK1List,
+        SIZE_2JLIST or SIZE_2ULIST    => FormatPK2List,
+        SIZE_1PARTY or SIZE_1STORED   => FormatPK1,
+        SIZE_2PARTY or SIZE_2STORED   => FormatPK2,
         SIZE_2STADIUM                 => FormatSK2,
         SIZE_3PARTY or SIZE_3STORED   => FormatPK3,
         SIZE_3CSTORED                 => FormatCK3,
         SIZE_3XSTORED                 => FormatXK3,
-        SIZE_4PARTY or SIZE_4STORED   => GetFormat45(data),
         SIZE_4RSTORED                 => FormatRK4,
-        SIZE_5PARTY                   => FormatPK5,
+        SIZE_4PARTY or SIZE_4STORED or SIZE_5PARTY
+                                      => GetFormat45(data),
         SIZE_6STORED                  => GetFormat67(data),
         SIZE_6PARTY                   => GetFormat67_PGT(data),
         SIZE_8PARTY  or SIZE_8STORED  => GetFormat89(data),
@@ -65,14 +67,12 @@ public static class EntityFormat
     // assumes decrypted state
     private static EntityFormatDetected GetFormat45(ReadOnlySpan<byte> data)
     {
-        if (data.Length == SIZE_4RSTORED)
-            return FormatRK4;
         if (ReadUInt16LittleEndian(data[0x4..]) != 0)
             return FormatBK4; // BK4 non-zero sanity
         if (data[0x5F] < 0x10 && ReadUInt16LittleEndian(data[0x80..]) < 0x3333)
-            return FormatPK4; // Gen3/4 version origin, not Transporter
+            return data.Length == SIZE_5PARTY ? FormatBK4 : FormatPK4; // Gen3/4 version origin, not Transporter
         if (ReadUInt16LittleEndian(data[0x46..]) != 0)
-            return FormatPK4; // PK4.MetLocationExtended (unused in PK5)
+            return data.Length == SIZE_5PARTY ? FormatBK4 : FormatPK4; // PK4.MetLocationExtended (unused in PK5)
         return FormatPK5;
     }
 
@@ -90,20 +90,64 @@ public static class EntityFormat
     /// </summary>
     private static EntityFormatDetected GetFormat89(ReadOnlySpan<byte> data)
     {
-        var pk = new PK8(data.ToArray());
-        if (IsFormatReally9(pk))
-            return pk.Data[0xCE] == (byte)GameVersion.ZA ? FormatPA9 : FormatPK9;
-        return IsFormatReally8b(pk);
+        var pk = new PK8(data.ToArray()); // Force decryption
+
+        var core = pk.Data;
+        if (ReadUInt32LittleEndian(core[0x120..]) == 0) // Uncaptured (no egg/met locations)
+            return GetFormat89Uncaptured(core);
+
+        if (core[0x11F] == 0) // PK8/PB8: Unused Alignment, PK9/PA9: Obedience Level
+        {
+            // Can still be zero if it's an egg in S/V.
+            var ivs = ReadUInt32LittleEndian(core[0x8C..]);
+            if (((ivs >> 30) & 1) != 1) // IsEgg flag not set!
+            {
+                // Not an egg, therefore should have obedience level as PK9/PA9.
+                // Since it doesn't, it's a Gen8 non-egg.
+                return IsFormatReally8b(pk);
+            }
+
+            // ZA has no eggs. If 0xDE is non-zero, it's a Gen8 egg.
+            if (core[0xDE] != 0) // SW/SH or BD/SP.
+                return IsFormatReally8b(pk);
+
+            // Else, is S/V egg.
+            return FormatPK9;
+        }
+
+        // Differentiate PK9/PA9.
+        if (core[0xCE] == (byte)GameVersion.ZA) // Version
+            return FormatPA9;
+        if (core[0x23] != 0) // IsAlpha
+            return FormatPA9;
+        if (core[0x96..0xA0].ContainsAnyExcept<byte>(0)) // Plus Flags [2..] (Tera Type in S/V uses first two bytes)
+            return FormatPA9;
+        if (core[0xD6..0xF7].ContainsAnyExcept<byte>(0)) // Plus Flags)
+            return FormatPA9;
+
+        if (core[0x82..0x8A].ContainsAnyExcept<byte>(0)) // Relearn Moves (unused by Z-A)
+            return FormatPK9;
+
+        // Really should have at least one plus move flag set as an external transfer, but level 1 mon's won't.
+        // I guess it won't hurt to force transfer it PK9=>PA9 if we just assume it's a PK9.
+        var item = ReadUInt16LittleEndian(core[0x0A..]);
+        if (ItemStorage9ZA.IsUniqueHeldItem(item)) // Mega Stone or Primal Orb, which S/V doesn't have.
+            return FormatPA9;
+
+        return Format9or9a; // Could be either; let other clues like extension/current save file format differentiate.
     }
 
-    private static bool IsFormatReally9(PK8 pk)
+    private static EntityFormatDetected GetFormat89Uncaptured(ReadOnlySpan<byte> core)
     {
-        // PK8: Unused Alignment, PK9: Obedience Level
-        if (pk.Data[0x11F] != 0)
-            return true;
-        // PK8: Version, PK9: Unused -- Version relocated to 0xCE
-        return pk.Data[0xDE] == 0;
-        // No need to check for other usages being different.
+        // S/V does not set version.
+        // ZA sets version @ 0xCE; byte is used by Poké Jobs in SW/SH (unused in BD/SP), so it's a clear differentiator.
+        if (core[0xCE] == (byte)GameVersion.ZA) // Version
+            return FormatPA9;
+        if (core[0xE8] == 0) // 0xFF for Affixed Ribbon in Gen8 formats.
+            return FormatPK9;
+
+        // SW/SH and BD/SP are pretty much the same; not really interested in dumping BD/SP blank data. Defer to extension.
+        return Format8or8b;
     }
 
     /// <summary>
@@ -120,8 +164,10 @@ public static class EntityFormat
 
     private static PKM? GetFromBytes(Memory<byte> data, EntityFormatDetected format, EntityContext prefer) => format switch
     {
-        FormatPK1 => PokeList1.ReadFromSingle(data.Span),
-        FormatPK2 => PokeList2.ReadFromSingle(data.Span),
+        FormatPK1List => PokeList1.ReadFromSingle(data.Span),
+        FormatPK2List => PokeList2.ReadFromSingle(data.Span),
+        FormatPK1 => new PK1(data),
+        FormatPK2 => new PK2(data),
         FormatSK2 => new SK2(data),
         FormatPK3 => new PK3(data),
         FormatCK3 => new CK3(data),
@@ -138,6 +184,7 @@ public static class EntityFormat
         FormatPB8 => new PB8(data),
         Format6or7 => prefer == EntityContext.Gen6 ? new PK6(data) : new PK7(data),
         Format8or8b => prefer == EntityContext.Gen8b ? new PB8(data) : new PK8(data),
+        Format9or9a => prefer == EntityContext.Gen9a ? new PA9(data) : new PK9(data),
         FormatPK9 => new PK9(data),
         FormatPA9 => new PA9(data),
         _ => null,
@@ -222,6 +269,8 @@ public enum EntityFormatDetected
 {
     None,
 
+    FormatPK1List, FormatPK2List,
+
     FormatPK1,
     FormatPK2, FormatSK2,
     FormatPK3, FormatCK3, FormatXK3,
@@ -232,4 +281,5 @@ public enum EntityFormatDetected
 
     Format6or7,
     Format8or8b,
+    Format9or9a,
 }

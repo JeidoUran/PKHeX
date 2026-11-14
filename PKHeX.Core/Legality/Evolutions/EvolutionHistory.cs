@@ -99,4 +99,61 @@ public sealed class EvolutionHistory
         single.Set(context, Get(context).ToArray());
         return single;
     }
+
+    public EvolutionHistory PruneKeepPreEvolutions(ushort species) => new()
+    {
+        Gen1 = PruneKeepPreEvolutions(Gen1, species),
+        Gen2 = PruneKeepPreEvolutions(Gen2, species),
+        Gen3 = PruneKeepPreEvolutions(Gen3, species),
+        Gen4 = PruneKeepPreEvolutions(Gen4, species),
+        Gen5 = PruneKeepPreEvolutions(Gen5, species),
+        Gen6 = PruneKeepPreEvolutions(Gen6, species),
+        Gen7 = PruneKeepPreEvolutions(Gen7, species),
+        Gen8 = PruneKeepPreEvolutions(Gen8, species),
+        Gen9 = PruneKeepPreEvolutions(Gen9, species),
+        Gen7b = PruneKeepPreEvolutions(Gen7b, species),
+        Gen8a = PruneKeepPreEvolutions(Gen8a, species),
+        Gen8b = PruneKeepPreEvolutions(Gen8b, species),
+        Gen9a = PruneKeepPreEvolutions(Gen9a, species),
+    };
+
+    private static EvoCriteria[] PruneKeepPreEvolutions(EvoCriteria[] src, ushort species)
+    {
+        // Most evolved species is at the lowest index.
+        // If `species` is at the current index, only keep indexes after.
+        var start = GetSpeciesIndex(src, species);
+        if (start == -1)
+            return src;
+        if (start == src.Length - 1)
+            return NONE;
+        return src[(start + 1)..];
+    }
+
+    private static int GetSpeciesIndex(ReadOnlySpan<EvoCriteria> array, ushort species)
+    {
+        for (int i = 0; i < array.Length; i++)
+        {
+            if (array[i].Species == species)
+                return i;
+        }
+        return -1;
+    }
+
+    public bool HasVisitedExcept(params ReadOnlySpan<EntityContext> context)
+    {
+        if (HasVisitedZA   && !context.Contains(EntityContext.Gen9a)) return true;
+        if (HasVisitedGen9 && !context.Contains(EntityContext.Gen9))  return true;
+        if (HasVisitedBDSP && !context.Contains(EntityContext.Gen8a)) return true;
+        if (HasVisitedPLA  && !context.Contains(EntityContext.Gen8b)) return true;
+        if (HasVisitedSWSH && !context.Contains(EntityContext.Gen8))  return true;
+        if (HasVisitedLGPE && !context.Contains(EntityContext.Gen7b)) return true;
+        if (HasVisitedGen7 && !context.Contains(EntityContext.Gen7))  return true;
+        if (HasVisitedGen6 && !context.Contains(EntityContext.Gen6))  return true;
+        if (HasVisitedGen5 && !context.Contains(EntityContext.Gen5))  return true;
+        if (HasVisitedGen4 && !context.Contains(EntityContext.Gen4))  return true;
+        if (HasVisitedGen3 && !context.Contains(EntityContext.Gen3))  return true;
+        if (HasVisitedGen2 && !context.Contains(EntityContext.Gen2))  return true;
+        if (HasVisitedGen1 && !context.Contains(EntityContext.Gen1))  return true;
+        return false;
+    }
 }

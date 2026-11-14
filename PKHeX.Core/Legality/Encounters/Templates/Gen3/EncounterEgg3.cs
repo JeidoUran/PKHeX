@@ -58,12 +58,16 @@ public sealed record EncounterEgg3(ushort Species, GameVersion Version) : IEncou
 
             // Force Hatch
             Language = language,
-            OriginalTrainerName = tr.OT,
             Nickname = SpeciesName.GetSpeciesNameGeneration(Species, language, Generation),
             OriginalTrainerFriendship = 120,
             MetLevel = 0,
             MetLocation = Location,
         };
+        // Copy from SaveFile's OT name. Trash bytes here should be pure, but our OT name might not always source from a PK3/SAV3.
+        // Condition the buffer as if it came from a correct SAV3 named after the OT.
+        var ot = pk.OriginalTrainerTrash;
+        ot[..(language == 1 ? 6 : 7)].Fill(0xFF);
+        pk.OriginalTrainerName = EncounterUtil.GetTrainerName(tr, language);
 
         SetEncounterMoves(pk);
 
@@ -75,14 +79,14 @@ public sealed record EncounterEgg3(ushort Species, GameVersion Version) : IEncou
         // Get a random PID that matches gender/nature/ability criteria
         var pi = PersonalTable.E[Species];
         var gr = pi.Gender;
-        var pid = GetRandomPID(criteria, gr);
+        var pid = GetRandomPID(criteria, gr, tr.ID32);
         pk.PID = pid;
         pk.RefreshAbility((int)(pid % 2));
 
         return pk;
     }
 
-    private uint GetRandomPID(in EncounterCriteria criteria, byte gr)
+    private uint GetRandomPID(in EncounterCriteria criteria, byte gr, uint id32)
     {
         var seed = Util.Rand32();
         while (true)
@@ -93,7 +97,7 @@ public sealed record EncounterEgg3(ushort Species, GameVersion Version) : IEncou
             var gender = EntityGender.GetFromPIDAndRatio(pid, gr);
             if (criteria.IsSpecifiedGender() && !criteria.IsSatisfiedGender(gender))
                 continue;
-            if (criteria.IsSpecifiedNature() && !criteria.IsSatisfiedNature((Nature)(pid % 25)))
+            if (criteria.IsSpecifiedNature() && !criteria.IsSatisfiedNature(pid))
                 continue;
             if (criteria.IsSpecifiedAbility() && !criteria.IsSatisfiedAbility((byte)(pid % 2)))
                 continue;
@@ -104,6 +108,10 @@ public sealed record EncounterEgg3(ushort Species, GameVersion Version) : IEncou
 
             if (!Daycare3.IsValidProcPID(pid, Version))
                 continue; // 0-value PID is invalid
+
+            var shiny = ShinyUtil.GetIsShiny3(id32, pid);
+            if (criteria.Shiny.IsShiny() != shiny)
+                continue;
 
             return pid;
         }

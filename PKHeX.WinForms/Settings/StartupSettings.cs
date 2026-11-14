@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Windows.Forms;
 using PKHeX.Core;
 
 namespace PKHeX.WinForms;
@@ -12,10 +13,13 @@ public sealed class StartupSettings : IStartupSettings
     public string Version { get; set; } = string.Empty;
 
     [LocalizedDescription("Use the Dark color mode for the application on startup.")]
-    public bool DarkMode { get; set; }
+    public bool DarkMode { get; set; } = Application.SystemColorMode == SystemColorMode.Dark; // auto-detect for new settings, json load preserves any choice.
 
     [LocalizedDescription("Force HaX mode on Program Launch")]
     public bool ForceHaXOnLaunch { get; set; }
+
+    [LocalizedDescription("Toggles a higher Dpi rendering mode for the application on startup.")]
+    public bool HighDpiText { get; set; } // opt-in
 
     [LocalizedDescription("Skips displaying the splash screen on Program Launch.")]
     public bool SkipSplashScreen { get; set; }
@@ -39,58 +43,56 @@ public sealed class StartupSettings : IStartupSettings
     public List<string> RecentlyLoaded { get; set; } = new(DefaultMaxRecent);
 
     private const int DefaultMaxRecent = 10;
-    private uint MaxRecentCount = DefaultMaxRecent;
 
     [LocalizedDescription("Amount of recently loaded save files to remember.")]
     public uint RecentlyLoadedMaxCount
     {
-        get => MaxRecentCount;
+        get;
         // Sanity check to not let the user foot-gun themselves a slow recall time.
-        set => MaxRecentCount = Math.Clamp(value, 1, 1000);
-    }
+        set => field = Math.Clamp(value, 1, 1000);
+    } = DefaultMaxRecent;
 
     // Don't let invalid values slip into the startup version.
-    private GameVersion _defaultSaveVersion = Latest.Version;
-    private string _language = WinFormsUtil.GetCultureLanguage();
 
     [Browsable(false)]
     public string Language
     {
-        get => _language;
+        get;
         set
         {
             if (!GameLanguage.IsLanguageValid(value))
             {
                 // Migrate old language codes set in earlier versions.
-                _language = value switch
+                field = value switch
                 {
                     "zh" => "zh-Hans",
                     "zh2" => "zh-Hant",
-                    _ => _language,
+                    _ => field,
                 };
                 return;
             }
-            _language = value;
+
+            field = value;
         }
-    }
+    } = WinFormsUtil.GetCultureLanguage();
 
     [Browsable(false)]
     public GameVersion DefaultSaveVersion
     {
-        get => _defaultSaveVersion;
+        get;
         set
         {
             if (!value.IsValidSavedVersion())
                 return;
-            _defaultSaveVersion = value;
+            field = value;
         }
-    }
+    } = Latest.Version;
 
     public void LoadSaveFile(string path)
     {
         var recent = RecentlyLoaded;
         // Remove from list if already present.
-        if (!recent.Remove(path) && recent.Count >= MaxRecentCount)
+        if (!recent.Remove(path) && recent.Count >= RecentlyLoadedMaxCount)
             recent.RemoveAt(recent.Count - 1);
         recent.Insert(0, path);
     }

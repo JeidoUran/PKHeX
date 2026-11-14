@@ -195,6 +195,16 @@ public sealed class ItemStorage9SV : IItemStorage
         1785, // Strange Ball
     ];
 
+    private static ReadOnlySpan<ushort> UnreleasedIngredients =>
+    [
+        2395, // Blue Dish
+      //2396, // Green Dish (Mesagoza Treasure Hunt)
+        2397, // Orange Dish
+        2398, // Red Dish
+        2399, // White Dish
+        2400, // Yellow Dish
+    ];
+
     public int GetMax(InventoryType type) => type switch
     {
         InventoryType.Items => 999,
@@ -205,14 +215,17 @@ public sealed class ItemStorage9SV : IItemStorage
         InventoryType.Balls => 999,
         InventoryType.BattleItems => 999,
         InventoryType.Treasure => 999,
-        InventoryType.Ingredients => 999, // 999
+        InventoryType.Ingredients => 999, // 999 (depends on item)
         InventoryType.Candy => 999, // 999
         _ => throw new ArgumentOutOfRangeException(nameof(type)),
     };
 
     public bool IsLegal(InventoryType type, int itemIndex, int itemCount)
     {
-        return itemCount != 0 && Unreleased.BinarySearch((ushort)itemIndex) < 0;
+        if (itemCount == 0) return false;
+        if (type is InventoryType.Ingredients)
+            return !UnreleasedIngredients.Contains((ushort)itemIndex);
+        return Unreleased.BinarySearch((ushort)itemIndex) < 0;
     }
 
     public ReadOnlySpan<ushort> GetItems(InventoryType type) => GetLegal(type);
@@ -244,4 +257,8 @@ public sealed class ItemStorage9SV : IItemStorage
         }
         return InventoryType.None;
     }
+
+    public static bool IsIngredient(int itemIndex) => itemIndex is (>= 1888 and <= 1946);
+    public static bool IsPick(int itemIndex) => itemIndex is (>= 2334 and <= 2342) or (>= 2385 and <= 2394) or 2548; // Fiery Pick
+    public static bool IsAccessory(int itemIndex) => itemIndex is (>= 2311 and <= 2400) or (>= 2417 and <= 2437) && !IsPick(itemIndex); // Tablecloths, chairs, cups, etc
 }

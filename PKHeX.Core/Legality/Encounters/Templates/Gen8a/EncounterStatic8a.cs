@@ -14,7 +14,7 @@ public sealed record EncounterStatic8a
     public EntityContext Context => EntityContext.Gen8a;
     private const GameVersion Version = GameVersion.PLA;
     GameVersion IVersion.Version => GameVersion.PLA;
-    public ushort EggLocation => 0;
+    ushort ILocation.EggLocation => 0;
     ushort ILocation.Location => Location;
     public bool IsShiny => Shiny == Shiny.Always;
     public bool IsEgg => false;
@@ -118,7 +118,7 @@ public sealed record EncounterStatic8a
         SetEncounterMoves(pk, pk.MetLevel);
     }
 
-    public void GenerateSeed64(PKM pk, ulong seed)
+    public void GenerateSeed64(PKM pk, ITrainerInfo tr, ulong seed)
     {
         var pa8 = (PA8)pk;
         var criteria = EncounterCriteria.Unrestricted;
@@ -133,9 +133,7 @@ public sealed record EncounterStatic8a
         var (learn, mastery) = GetLevelUpInfo();
         LoadInitialMoveset(pk, moves, learn, level);
         pk.SetMoves(moves);
-        pk.SetEncounterMasteryFlags(moves, mastery, level);
-        if (pk.AlphaMove != 0)
-            pk.SetMasteryFlagMove(pk.AlphaMove);
+        pk.SetEncounterMasteryFlags(moves, mastery, level, pk.AlphaMove);
     }
 
     public (Learnset Learn, Learnset Mastery) GetLevelUpInfo() => LearnSource8LA.GetLearnsetAndMastery(Species, Form);
@@ -178,6 +176,8 @@ public sealed record EncounterStatic8a
     }
     #endregion
 
+    public bool IsAlpha127 => IsAlpha && HeightScalar == 127 && WeightScalar == 127;
+
     #region Matching
     public bool IsMatchExact(PKM pk, EvoCriteria evo)
     {
@@ -187,7 +187,7 @@ public sealed record EncounterStatic8a
             return false;
         if (pk is IAlphaReadOnly a && a.IsAlpha != IsAlpha)
             return false;
-        if (!IsMatchEggLocation(pk))
+        if (!this.IsMatchEggLocation(pk))
             return false;
         if (!IsMatchLocation(pk))
             return false;
@@ -199,8 +199,11 @@ public sealed record EncounterStatic8a
         if (pk is not IScaledSize s)
             return true;
 
-        // 3 of the Alpha statics were mistakenly set as 127 scale. If they enter HOME on 3.0.1, they'll get bumped to 255.
-        if (IsAlpha && this is { HeightScalar: 127, WeightScalar: 127 }) // Average Size Alphas
+        // 3 of the Alpha statics were mistakenly set as 127 height/weight/scale.
+        // Depositing them from any game into HOME 3.0.1 or later bumps all 3 values to 255.
+        // The handling is server-sided and checks specifically for origin game, species, form, and Alpha Mark.
+        // Defer scale match to downstream checks; we are sufficiently confident this is the best-match.
+        if (IsAlpha127) // Average Size Alphas
         {
             // HOME >=3.0.1 ensures 255 scales for the 127's
             // PLA and S/V could have safe-harbored them via <=3.0.0
@@ -234,12 +237,6 @@ public sealed record EncounterStatic8a
         }
 
         return true;
-    }
-
-    private bool IsMatchEggLocation(PKM pk)
-    {
-        var expect = pk is PB8 ? Locations.Default8bNone : EggLocation;
-        return pk.EggLocation == expect;
     }
 
     private bool IsMatchLocation(PKM pk)
@@ -286,18 +283,18 @@ public sealed record EncounterStatic8a
             return true;
 
         const bool allowAlphaPurchaseBug = true; // Everything else Alpha is pre-1.1
-        var level = pk.MetLevel;
+        var metLevel = pk.MetLevel;
         var (learn, mastery) = GetLevelUpInfo();
-        if (!p.IsValidPurchasedEncounter(learn, level, alpha, allowAlphaPurchaseBug))
+        if (!p.IsValidPurchasedEncounter(learn, metLevel, alpha, allowAlphaPurchaseBug))
             return false;
 
         Span<ushort> moves = stackalloc ushort[4];
         if (Moves.HasMoves)
             Moves.CopyTo(moves);
         else
-            learn.SetEncounterMoves(level, moves);
+            learn.SetEncounterMoves(metLevel, moves);
 
-        return p.IsValidMasteredEncounter(moves, learn, mastery, level, alpha, allowAlphaPurchaseBug);
+        return p.IsValidMasteredEncounter(moves, learn, mastery, metLevel, alpha, allowAlphaPurchaseBug);
     }
     #endregion
 

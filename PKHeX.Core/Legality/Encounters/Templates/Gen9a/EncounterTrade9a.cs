@@ -18,7 +18,7 @@ public sealed record EncounterTrade9a : IEncounter9a,
     public Ball FixedBall => Ball.Poke;
     public Shiny Shiny => Shiny.Never;
     public bool IsShiny => false;
-    public ushort EggLocation => 0;
+    ushort ILocation.EggLocation => 0;
     public byte FlawlessIVCount { get; init; }
     public byte LevelMin => Level;
     public byte LevelMax => Level;
@@ -75,7 +75,7 @@ public sealed record EncounterTrade9a : IEncounter9a,
             MetDate = EncounterDate.GetDateSwitch(),
             Gender = Gender,
             Nature = Nature,
-            StatNature = Nature,
+            StatAlignment = Nature,
             Ball = (byte)FixedBall,
 
             ID32 = ID32,
@@ -127,25 +127,17 @@ public sealed record EncounterTrade9a : IEncounter9a,
     private void SetMoves(PA9 pk, PersonalInfo9ZA pi, byte level)
     {
         var (learn, plus) = LearnSource9ZA.GetLearnsetAndPlus(Species, Form);
-        Span<ushort> moves = stackalloc ushort[4];
+        pk.SetPlusFlagsEncounter(pi, plus, level);
         if (Moves.HasMoves)
         {
             pk.SetMoves(Moves);
-            pk.GetMoves(moves);
-            PlusRecordApplicator.SetPlusFlagsEncounter(pk, pi, plus, level);
             return;
         }
 
-        if (!IsAlpha)
-        {
-            learn.SetEncounterMoves(level, moves);
-            PlusRecordApplicator.SetPlusFlagsEncounter(pk, pi, plus, level);
-        }
-        else
-        {
-            learn.SetEncounterMovesBackwards(level, moves, sameDescend: false);
-            PlusRecordApplicator.SetPlusFlagsEncounter(pk, pi, plus, level, moves[0] = pi.AlphaMove);
-        }
+        Span<ushort> moves = stackalloc ushort[4];
+        learn.SetEncounterMovesBackwards(level, moves, sameDescend: false);
+        if (pk.IsAlpha)
+            pk.SetPlusFlagsSpecific(pi, moves[0] = pi.AlphaMove);
         pk.SetMoves(moves);
     }
 
@@ -163,7 +155,7 @@ public sealed record EncounterTrade9a : IEncounter9a,
             return false;
         if (pk.Gender != Gender)
             return false;
-        if (Nature != Nature.Random && pk.Nature != Nature)
+        if (Nature.IsFixed && pk.Nature != Nature)
             return false;
         return true;
     }
@@ -194,13 +186,13 @@ public sealed record EncounterTrade9a : IEncounter9a,
             return false;
         if (pk.OriginalTrainerGender != OTGender)
             return false;
-        if (!IsMatchEggLocation(pk))
+        if (!this.IsMatchEggLocation(pk))
             return false;
         if (IVs.IsSpecified && !Legal.GetIsFixedIVSequenceValidSkipRand(IVs, pk))
             return false;
         if (FlawlessIVCount != 0 && pk.FlawlessIVCount < FlawlessIVCount)
             return false;
-        if (Nature != Nature.Random && pk.Nature != Nature)
+        if (Nature.IsFixed && pk.Nature != Nature)
             return false;
         if (pk is IAlphaReadOnly a && a.IsAlpha != IsAlpha)
             return false;
@@ -208,7 +200,6 @@ public sealed record EncounterTrade9a : IEncounter9a,
         return true;
     }
 
-    private bool IsMatchEggLocation(PKM pk) => pk.EggLocation == EggLocation;
     private bool IsMatchLocation(PKM pk) => pk.MetLocation == Location;
 
     #endregion

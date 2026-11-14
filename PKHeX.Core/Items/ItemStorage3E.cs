@@ -13,14 +13,16 @@ public sealed class ItemStorage3E : IItemStorage
     public static ReadOnlySpan<ushort> Key =>
     [
         // R/S
-        259, 260, 261, 262, 263, 264, 265, 266, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288,
+        259, 260, 261, 262, 263, 264, 265, 266, 268, 269, 270, 271, 272, 273, 274, 275,           278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288,
         // FR/LG
-        349, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 360, 361, 362, 363, 364, 365, 366, 367, 368, 369, 370, 371, 372, 373, 374,
+        370, 371, 372,
         // E
         375, 376,
     ];
 
-    public bool IsLegal(InventoryType type, int itemIndex, int itemCount) => true;
+    private static readonly ushort[] PCItems = [.. General, .. Berry, .. Balls, .. Machine];
+
+    public bool IsLegal(InventoryType type, int itemIndex, int itemCount) => !Unreleased.Contains((ushort)itemIndex);
 
     public ReadOnlySpan<ushort> GetItems(InventoryType type) => type switch
     {
@@ -29,7 +31,7 @@ public sealed class ItemStorage3E : IItemStorage
         InventoryType.Balls => Balls,
         InventoryType.TMHMs => Machine,
         InventoryType.Berries => Berry,
-        InventoryType.PCItems => General,
+        InventoryType.PCItems => PCItems,
         _ => throw new ArgumentOutOfRangeException(nameof(type), type, null),
     };
 }

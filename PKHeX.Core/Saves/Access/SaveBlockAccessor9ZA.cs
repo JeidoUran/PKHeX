@@ -23,6 +23,7 @@ public sealed class SaveBlockAccessor9ZA(SAV9ZA sav) : SCBlockAccessor
     public Epoch1900DateTimeValue EnrollmentDate { get; } = new(Block(sav, KEnrollmentDate)); // not actually used
     public Coordinates9a Coordinates { get; } = new(sav, Block(sav, KCoordinates));
     public InfiniteRoyale9a InfiniteRoyale { get; } = new(sav, Block(sav, KInfiniteRoyale));
+    public PlayerAppearance9a PlayerAppearance { get; } = new(sav, Block(sav, KCurrentAppearance));
     public PlayerFashion9a PlayerFashion { get; } = new(sav, Block(sav, KCurrentClothing));
     public ConfigSave9a Config { get; } = new(sav, Block(sav, KConfig));
 
@@ -45,6 +46,8 @@ public sealed class SaveBlockAccessor9ZA(SAV9ZA sav) : SCBlockAccessor
     public EventWorkValueStorageKey128 Spawner4 { get; } = new(sav, Block(sav, KEventSpawner4)); // (u64-key, u64-hash, u64-struct)
 
     public MableStatus9a Mable { get; } = new(sav, Block(sav, KStatusMable));
+    public DonutPocket9a Donuts { get; } = new(sav, BlockSafe(sav, KDonuts));
+    public HyperspaceZones9a HyperspaceZones { get; } = new(sav, BlockSafe(sav, KHyperspaceZones));
 
     private const uint KBox = 0x0d66012c; // Box Data
     private const uint KParty = 0x3AA1A9AD; // Party Data
@@ -62,6 +65,7 @@ public sealed class SaveBlockAccessor9ZA(SAV9ZA sav) : SCBlockAccessor
     public const uint KBoxWallpapers = 0x2EB1B190; // Box Wallpapers
     public const uint KMoney = 0x4F35D0DD; // u32
     public const uint KCurrentBox = 0x017C3CBB; // U32 Box Index
+    public const uint KSaveRevision = 0x0926555A; // u64 revision
     private const uint KCoordinates = 0x910D381F; // Player Coordinates/Rotation
     private const uint KInfiniteRoyale = 0x8929BFB6; // object
     private const uint KConfig = 0xAC6DD22F; // u64 object
@@ -79,12 +83,11 @@ public sealed class SaveBlockAccessor9ZA(SAV9ZA sav) : SCBlockAccessor
     private const uint KEventSpawner2 = 0x79ABCB0B; // (u64-key, u64-bool, u64-struct)
     private const uint KEventInfiniteRank = 0x7C896A83; // (u64-key, u64-struct)
     private const uint KEventSpawner4 = 0xD1A3FF7B; // (u64-key, u64-hash, u64-struct)
-                                                     // B25E7EE5 0x400 unused
+    private const uint KRogueSimulatorRecords = 0xB25E7EE5; // Rogue Mega Evolution Simulator Records
 
     private const uint KEventReport = 0xAF2165F0; // 0x3000 (u64,(s64,u64) value)
     private const uint KObstruction = 0x4C26C29B; // (u64, u64-state, u64-unused)[2000]
     private const uint KFieldObjectInteractable = 0x7147C953; // (u64,u64,u64,value)[5000] (mega crystal, prize medals)
-
 
     public const uint KTicketPointsZARoyale = 0x9A730DE1; // u32
     public const uint KTicketPointsZARoyaleInfinite = 0x1D7EE369; // u32
@@ -151,4 +154,12 @@ public sealed class SaveBlockAccessor9ZA(SAV9ZA sav) : SCBlockAccessor
     private const uint KNightRoyaleBonusCards = 0x2A07F494; // object
 
     private const uint KStatusMable = 0x85DBDCE9; // Mable Overall Status
+
+    private const uint KDistortionTimeRemain = 0x84D0F3CA;
+    private const uint KDonuts = 0xBE007476; // object: donut[999], sizeof = 0x48
+    private const uint KDonutDistortionInUse = 0x25335B2A; // Inside distortion, this is the currently used donut
+    public const uint KHyperspaceSurveyPoints = 0x0235471C;
+    public const uint KStreetName = 0xBCCE00D6; // 0x26 string = 18 chars + \0
+    private const uint KHyperspaceZones = 0x9E14BFFB; // object: hyperspace portals on the map
+    private const uint KTaskWorkCatchSpecies = 0xD035ED5E; // object: used to store the unique species that have been caught for the "catch x species" tasks
 }

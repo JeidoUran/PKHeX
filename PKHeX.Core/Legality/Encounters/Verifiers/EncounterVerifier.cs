@@ -22,8 +22,14 @@ public static class EncounterVerifier
     private static CheckResult VerifyEncounter(PKM pk, IEncounterTemplate enc) => enc switch
     {
         EncounterShadow3Colo { IsEReader: true } when pk.Language != (int)LanguageID.Japanese => GetInvalid(G3EReader),
-        EncounterStatic3 { Species: (int)Species.Mew } when pk.Language != (int)LanguageID.Japanese => GetInvalid(EncUnreleasedEMewJP),
-        EncounterStatic3 { Species: (int)Species.Deoxys, Location: 200 } when pk.Language == (int)LanguageID.Japanese => GetInvalid(EncUnreleased),
+
+        // Mew @ Faraway Island (Emerald)
+        EncounterStatic3 { Species: (int)Species.Mew } when pk.Language != (int)LanguageID.Japanese
+            => GetInvalid(EncUnreleasedEMewJP),
+        // Deoxys @ Birth Island (FireRed/LeafGreen) - Never distributed in Japan during GBA Cart era. NX virtual console added for all.
+        EncounterStatic3 { Species: (int)Species.Deoxys, Location: 200 } when pk.Language == (int)LanguageID.Japanese && !ParseSettings.AllowGen3EventTicketsAll(pk)
+            => GetInvalid(EncUnreleased),
+
         EncounterStatic4 { Species: (int)Species.Shaymin } when pk.Language == (int)LanguageID.Korean => GetInvalid(EncUnreleased),
         EncounterStatic4 { IsRoaming: true } when pk is G4PKM { MetLocation: 193, GroundTile: GroundTileType.Water } => GetInvalid(G4InvalidTileR45Surf),
         MysteryGift g => VerifyEncounterEvent(pk, g),
@@ -49,7 +55,7 @@ public static class EncounterVerifier
     }
 
     // Gen2 Wild Encounters
-    private static CheckResult VerifyWildEncounterGen2(ITrainerID16 pk, EncounterSlot2 enc) => enc.Type switch
+    private static CheckResult VerifyWildEncounterGen2<T>(T pk, EncounterSlot2 enc) where T : ITrainerID16 => enc.Type switch
     {
         SlotType2.Headbutt or SlotType2.HeadbuttSpecial => enc.IsTreeAvailable(pk.TID16)
             ? GetValid(G2TreeID)
@@ -146,6 +152,8 @@ public static class EncounterVerifier
             return GetValid(EggLocation);
 
         // Version isn't updated when hatching on a different game. Check any game.
+        if (!ParseSettings.AllowGBACrossTransferRSE(pk)) // Must match the origin game (Nintendo Switch VC)
+            return GetInvalid(EggLocationInvalid);
         if (EggHatchLocation3.IsValidMet3Any(met))
             return GetValid(EggLocationTrade);
         return GetInvalid(EggLocationInvalid);
@@ -162,11 +170,28 @@ public static class EncounterVerifier
         if (pk.MetLevel < EggStateLegality.EggLevel23)
             return GetInvalid(TransferEggMetLevel);
 
-        var expectEgg = pk is PB8 ? Locations.Default8bNone : 0;
+        var expectEgg = EncounterUtil.GetExpectedEggLocation(pk, 0);
         if (pk.EggLocation != expectEgg)
             return GetInvalid(EggLocationNone);
 
-        if (pk.Format != 4)
+        if (pk.VC3)
+        {
+            if (pk is PK8 pk8)
+            {
+                if (!LocationsHOME.IsValidMetFRLG(pk8.MetLocation, pk8.Version))
+                    return GetInvalid(TransferMetLocation);
+            }
+            else
+            {
+                if (pk.MetLocation != LocationsHOME.VirtualConsole3)
+                    return GetInvalid(TransferMetLocation);
+            }
+
+            // VC3 transfer is always level 5 met level (a zero met level gets reassigned as 5).
+            if (pk.MetLevel != EggStateLegality.EggLevel23)
+                return GetInvalid(TransferEggMetLevel);
+        }
+        else if (pk.Format != 4)
         {
             if (pk.MetLocation != Locations.Transfer4)
                 return GetInvalid(TransferEggLocationTransporter);
@@ -291,6 +316,8 @@ public static class EncounterVerifier
             return GetInvalid(EggFMetLevel_0, level);
 
         var met = pk.MetLocation;
+        if (pk is not PB8)
+            met = Locations8b.GetLocationLocal(met);
         bool valid = pk.Version == GameVersion.BD
             ? EggHatchLocation8b.IsValidMet8BD(met)
             : EggHatchLocation8b.IsValidMet8SP(met);
@@ -351,7 +378,7 @@ public static class EncounterVerifier
             : GetInvalid(EggLocationNone);
     }
 
-    private static CheckResult VerifyEncounterTrade(ISpeciesForm pk, EncounterTrade1 trade)
+    private static CheckResult VerifyEncounterTrade<T>(T pk, EncounterTrade1 trade) where T : ISpeciesForm
     {
         var species = pk.Species;
         if (trade.EvolveOnTrade && trade.Species == species)

@@ -28,7 +28,7 @@ public partial class SAV_SecretBase : Form
 
         NUD_FObject.Maximum = SecretBase6.COUNT_GOODS - 1; // zero indexed!
         NUD_FPKM.Maximum = SecretBase6Other.COUNT_TEAM - 1; // zero indexed!
-        PG_Base.Font = FontUtil.GetPKXFont();
+        PG_Base.Font = FontUtil.GetFont(context: EntityContext.Gen6);
 
         SetupComboBoxes();
         ReloadSecretBaseList();
@@ -406,7 +406,7 @@ public partial class SAV_SecretBase : Form
         sb.Load(obj);
         ReloadSecretBaseList();
         LoadCurrent(sb);
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     private void B_Export_Click(object sender, EventArgs e)

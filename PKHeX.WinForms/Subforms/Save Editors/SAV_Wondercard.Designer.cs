@@ -190,23 +190,26 @@ namespace PKHeX.WinForms
             // 
             // mnuView
             // 
+            mnuView.Image = Properties.Resources.other;
             mnuView.Name = "mnuView";
             mnuView.Size = new System.Drawing.Size(107, 22);
-            mnuView.Text = "View";
+            mnuView.Text = "&View";
             mnuView.Click += ClickView;
             // 
             // mnuSet
             // 
+            mnuSet.Image = Properties.Resources.exit;
             mnuSet.Name = "mnuSet";
             mnuSet.Size = new System.Drawing.Size(107, 22);
-            mnuSet.Text = "Set";
+            mnuSet.Text = "&Set";
             mnuSet.Click += ClickSet;
             // 
             // mnuDelete
             // 
+            mnuDelete.Image = Properties.Resources.nocheck;
             mnuDelete.Name = "mnuDelete";
             mnuDelete.Size = new System.Drawing.Size(107, 22);
-            mnuDelete.Text = "Delete";
+            mnuDelete.Text = "&Delete";
             mnuDelete.Click += ClickDelete;
             // 
             // FLP_Gifts

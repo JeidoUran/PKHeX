@@ -65,6 +65,8 @@ public static class Wild8bRNG
             if (shiny == Shiny.AlwaysStar && type != Shiny.AlwaysStar)
                 return false;
         }
+        if (shiny is Shiny.Random && criteria.IsSpecifiedShiny() && !criteria.IsSatisfiedShiny(GetShinyXor(pid, pk.ID32), 16))
+            return false;
         pk.PID = pid;
 
         // Check IVs: Create flawless IVs at random indexes, then the random IVs for not flawless.
@@ -132,11 +134,13 @@ public static class Wild8bRNG
         if (!criteria.IsSatisfiedNature(nature))
             return false;
 
-        pk.StatNature = pk.Nature = nature;
+        pk.StatAlignment = pk.Nature = nature;
 
         // Remainder
         pk.HeightScalar = (byte)(xors.NextUInt(0x81) + xors.NextUInt(0x80));
         pk.WeightScalar = (byte)(xors.NextUInt(0x81) + xors.NextUInt(0x80));
+        // Note: HOME can end up resetting Weight if Height is 0; however, the reversibility of PKM=>seed is not implemented/possible.
+        // If this ever (impossible) happens, be sure to add that check similar to SW/SH's scale matching logic.
 
         // Item, don't care
         return true;

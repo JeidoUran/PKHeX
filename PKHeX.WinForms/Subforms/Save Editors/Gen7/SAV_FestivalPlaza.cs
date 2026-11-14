@@ -18,6 +18,10 @@ public partial class SAV_FestivalPlaza : Form
     public SAV_FestivalPlaza(SAV7 sav)
     {
         InitializeComponent();
+
+        if (Application.IsDarkModeEnabled)
+            WinFormsTranslator.ReformatDark(TC_Editor);
+
         SAV = (SAV7)(Origin = sav).Clone();
         editing = true;
         entry = -1;
@@ -35,10 +39,8 @@ public partial class SAV_FestivalPlaza : Form
             TC_Editor.TabPages.Remove(Tab_BattleAgency);
         }
 
-        if (Main.Unicode)
-        {
-            TB_OTName.Font = FontUtil.GetPKXFont();
-        }
+        if (!Main.Unicode)
+            TB_OTName.DisableInGameFont = true;
 
         var cc = SAV.Festa.FestaCoins;
         var cu = SAV.GetRecord(038);
@@ -319,7 +321,15 @@ public partial class SAV_FestivalPlaza : Form
     private void LoadPictureBox()
     {
         for (int i = 0; i < 3; i++)
-            PBs[i].Image = p[i].Sprite(SAV, flagIllegal: true);
+            PBs[i].Image = p[i].Sprite(SAV, visibility: GetFlags(p[i]));
+    }
+
+    private SlotVisibilityType GetFlags(PKM pk, bool ignoreLegality = false)
+    {
+        var result = SlotVisibilityType.None;
+        if (!ignoreLegality)
+            result |= SlotVisibilityType.CheckLegalityIndicate;
+        return result;
     }
 
     private readonly NumericUpDown[] NUD_Trainers = new NumericUpDown[3];
@@ -337,9 +347,9 @@ public partial class SAV_FestivalPlaza : Form
             WriteUInt16LittleEndian(SAV.Data[0x6C3EE..], (ushort)(CHK_TrainerInvited.Checked ? GetSavData16(0x6C3EE) | InvitedValue : 0));
             WriteUInt16LittleEndian(SAV.Data[0x6C526..], (ushort)(CHK_TrainerInvited.Checked ? GetSavData16(0x6C526) | InvitedValue : 0));
         }
-        SAV.SetData(p[0].EncryptedBoxData, 0x6C200);
-        SAV.SetData(p[1].EncryptedPartyData, 0x6C2E8);
-        SAV.SetData(p[2].EncryptedPartyData, 0x6C420);
+        p[0].WriteEncryptedDataStored(SAV.Data[0x6C200..]); // BattleFesSave
+        p[1].WriteEncryptedDataParty(SAV.Data[0x6C2E8..]);
+        p[2].WriteEncryptedDataParty(SAV.Data[0x6C420..]);
 
         var gradeDefeated = ((((int)NUD_Defeated.Value & 0xF) << 12) | (((int)NUD_Grade.Value & 0x3F) << 6) | (SAV.Data[0x6C55C] & 0x3F));
         WriteUInt16LittleEndian(SAV.Data[0x6C558..], (ushort)NUD_DefeatMon.Value);
@@ -387,14 +397,12 @@ public partial class SAV_FestivalPlaza : Form
 
     private void TB_OTName_MouseDown(object sender, MouseEventArgs e)
     {
-        TextBox tb = sender as TextBox ?? TB_OTName;
         // Special Character Form
         if (ModifierKeys != Keys.Control)
             return;
 
-        var d = new TrashEditor(tb, SAV, SAV.Generation, SAV.Context);
-        d.ShowDialog();
-        tb.Text = d.FinalString;
+        var tb = sender as TextBox ?? TB_OTName;
+        TrashEditor.Show(tb, SAV);
     }
 
     private readonly string[] gendersymbols = ["♂", "♀"];
@@ -464,7 +472,7 @@ public partial class SAV_FestivalPlaza : Form
             editing = true;
             ((TextBox)sender).Text = t;
             editing = false;
-            System.Media.SystemSounds.Asterisk.Play();
+            WinFormsUtil.Asterisk();
         }
         if (sender == TB_UsedFlags)
         {
@@ -615,7 +623,7 @@ public partial class SAV_FestivalPlaza : Form
         if (editing)
             return;
 
-        int mmIndex = Array.IndexOf(NUD_Messages, (NumericUpDown)sender);
+        int mmIndex = NUD_Messages.IndexOf((NumericUpDown)sender);
         if (mmIndex < 0)
             return;
 
@@ -708,7 +716,7 @@ public partial class SAV_FestivalPlaza : Form
     {
         if (!WinFormsUtil.TryGetUnderlying<PictureBox>(sender, out var pb))
             return;
-        int i = Array.IndexOf(PBs, pb);
+        int i = PBs.IndexOf(pb);
         if (i < 0)
             return;
         WinFormsUtil.SavePKMDialog(p[i]);
@@ -755,6 +763,6 @@ public partial class SAV_FestivalPlaza : Form
             return;
         SAV.Fashion.GiveAgentSunglasses();
         B_AgentGlass.Enabled = false;
-        System.Media.SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 }

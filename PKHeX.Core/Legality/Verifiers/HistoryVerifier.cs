@@ -93,12 +93,16 @@ public sealed class HistoryVerifier : Verifier
     /// </summary>
     private void VerifyHandlerState(LegalityAnalysis data, bool neverOT)
     {
+        if (ParseSettings.ActiveTrainer is BulkStorage)
+            return;
+
         var pk = data.Entity;
         var info = data.Info;
         var enc = info.EncounterOriginal;
         var current = pk.CurrentHandler;
 
-        if (ParseSettings.Settings.Handler.CheckActiveHandler && ParseSettings.ActiveTrainer is { } tr)
+        var settings = ParseSettings.Settings.Handler;
+        if (settings.CheckActiveHandler && ParseSettings.ActiveTrainer is { } tr)
         {
             var shouldBe0 = tr.IsFromTrainer(pk);
             byte expect = shouldBe0 ? (byte)0 : (byte)1;
@@ -106,7 +110,7 @@ public sealed class HistoryVerifier : Verifier
             {
                 // generally disable this check if it's being edited inside a blank save file's environment.
                 if (tr is not SaveFile { State.Exportable: false })
-                    data.AddLine(GetInvalid(TransferCurrentHandlerInvalid));
+                    data.AddLine(Get(settings.CurrentHandlerMismatch, TransferCurrentHandlerInvalid));
                 // if there's no HT data yet specified, don't bother checking further.
                 // blank save exports will be injected and fixed later, and not-blanks will have been flagged by the above.
                 if (pk.IsUntraded)
@@ -136,7 +140,7 @@ public sealed class HistoryVerifier : Verifier
     /// <summary> <see cref="Bulk.HandlerChecker.CheckHandlingTrainerEquals"/> </summary>
     private void CheckHandlingTrainerEquals(LegalityAnalysis data, PKM pk, ITrainerInfo tr)
     {
-        Span<char> ht = stackalloc char[pk.TrashCharCountTrainer];
+        Span<char> ht = stackalloc char[pk.TrashCharCountHandler];
         var len = pk.LoadString(pk.HandlingTrainerTrash, ht);
         ht = ht[..len];
 
@@ -261,11 +265,14 @@ public sealed class HistoryVerifier : Verifier
 
     private void VerifyGeoLocationData(LegalityAnalysis data, IGeoTrack t, PKM pk)
     {
-        var valid = t.GetValidity();
+        var (valid, index) = t.GetValidity();
         if (valid == GeoValid.CountryAfterPreviousEmpty)
-            data.AddLine(GetInvalid(GeoBadOrder));
+            data.AddLine(GetInvalid(GeoBadOrder_0, index));
         else if (valid == GeoValid.RegionWithoutCountry)
-            data.AddLine(GetInvalid(GeoNoRegion));
+            data.AddLine(GetInvalid(GeoNoCountry_0, index));
+        else if (valid == GeoValid.CountryDoesNotHaveRegion)
+            data.AddLine(GetInvalid(GeoNoRegion_0, index));
+
         if (t.Geo1_Country != 0 && pk.IsUntraded) // traded
             data.AddLine(GetInvalid(GeoNoCountryHT));
     }
@@ -299,8 +306,10 @@ public sealed class HistoryVerifier : Verifier
         WB8 wb8 when wb8.GetHasOT(pk.Language) => false,
         WA8 wa8 when wa8.GetHasOT(pk.Language) => false,
         WC9 wc9 when wc9.GetHasOT(pk.Language) => false,
+        WA9 wa9 when wa9.GetHasOT(pk.Language) => false,
         WC8 {IsHOMEGift: true} => false,
         WC9 {IsHOMEGift: true} => false,
+        WA9 {IsHOMEGift: true} => false,
         _ => true,
     };
 

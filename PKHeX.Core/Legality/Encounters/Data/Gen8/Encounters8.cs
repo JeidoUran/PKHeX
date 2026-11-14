@@ -509,6 +509,7 @@ internal static class Encounters8
         new()     { Species = 479, Level = 50, Location = 186, Form = 05, Weather = Normal | Stormy | Intense_Sun | Heavy_Fog }, // Rotom-5 in the Workout Sea
         new()     { Species = 132, Level = 50, Location = 186, FlawlessIVCount = 3 }, // Ditto in the Workout Sea
       //new()     { Species = 242, Level = 50, Location = -1 }, // Blissey
+        new()     { Species = 103, Level = 50, Location = 186, Weather = Normal | Intense_Sun }, // Exeggutor in the Workout Sea
         new()     { Species = 103, Level = 50, Location = 190, Weather = Normal | Raining | Intense_Sun }, // Exeggutor in the Insular Sea
         new()     { Species = 571, Level = 50, Location = 190, Weather = Overcast }, // Zoroark in the Insular Sea
         new()     { Species = 462, Level = 50, Location = 190, Weather = Thunderstorm }, // Magnezone in the Insular Sea
@@ -758,7 +759,7 @@ internal static class Encounters8
     ];
 
     private const string tradeSWSH = "tradeswsh";
-    private static readonly string[][] TradeNames = Util.GetLanguageStrings10(tradeSWSH);
+    private static readonly string[][] TradeNames = GetLanguageStrings(tradeSWSH, 10);
     private static readonly string[] TradeOT_R1 = [string.Empty, "チホコ", "Regina", "Régiona", "Regionalia", "Regine", string.Empty, "Tatiana", "지민", "易蒂", "易蒂"];
     private static readonly IndividualValueSet TradeIVs = new(15, 15, 15, 15, 15, 15);
 

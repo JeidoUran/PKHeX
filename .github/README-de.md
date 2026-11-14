@@ -8,9 +8,9 @@ Die folgenden Dateien werden unterstützt:
 * Spielstände ("main", \*.sav, \*.dsv, \*.dat, \*.gci, \*.bin)
 * GameCube Memory Card Daten (\*.raw, \*.bin), die GC Pokémon Spielstände enthalten.
 * Einzelne Pokémon (.pk\*, \*.ck3, \*.xk3, \*.pb7, \*.sk2, \*.bk4, \*.rk4)
-* Wunderkarten (\*.pgt, \*.pcd, \*.pgf, .wc\*), inklusive Konvertierung zu .pk\*
+* Geheimgeschenke (\*.pgt, \*.pcd, \*.pgf, .wc\*), inklusive Konvertierung zu .pk\*
 * Import von GO Park Pokémon (\*.gp1) inklusive Konvertierung zu .pb7
-* Import von Teams aus entschlüsselten 3DS Battle Videos.
+* Import von Teams aus entschlüsselten 3DS Kampfvideos.
 * Transfer von einer Generation zur anderen, mit automatischer Umwandlung des Formats.
 
 Alle Daten werden so angezeigt, dass sie bearbeitet und gespeichert werden können.
@@ -28,9 +28,9 @@ PKHeX erwartet entschlüsselte Spielstände. Da diese konsolenspezifisch verschl
 
 ## Erstellen
 
-PKHeX ist eine Windows Forms Anwendung, welche die [.NET 9.0](https://dotnet.microsoft.com/download/dotnet/9.0) runtime benötigt.
+PKHeX ist eine Windows Forms Anwendung, welche die [.NET 10.0](https://dotnet.microsoft.com/download/dotnet/10.0) runtime benötigt.
 
-Die Anwendung kann mit jedem Kompiler erstellt werden, der C# 13 unterstützt.
+Die Anwendung kann mit jedem Kompiler erstellt werden, der C# 14 unterstützt.
 
 ### Erstell Konfiguration
 

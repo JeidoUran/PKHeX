@@ -17,10 +17,10 @@ public static class FormInfo
     /// <returns>True if it can only exist in a battle, false if it can exist outside of battle.</returns>
     public static bool IsBattleOnlyForm(ushort species, byte form, byte format)
     {
-        if (BattleMegas.Contains(species))
-            return IsBattleMegaForm(species, form);
-        if (BattleForms.Contains(species))
-            return IsBattleForm(species, form);
+        if (BattleMegas.Contains(species) && IsBattleMegaForm(species, form))
+            return true;
+        if (BattleForms.Contains(species) && IsBattleForm(species, form))
+            return true;
         return false;
     }
 
@@ -37,6 +37,13 @@ public static class FormInfo
     }
 
     /// <summary>
+    /// Checks if the form is a Primal form.
+    /// </summary>
+    /// <param name="species">Entity species</param>
+    /// <param name="form">Entity form</param>
+    public static bool IsPrimalForm(ushort species, byte form) => species is (ushort)Kyogre or (ushort)Groudon && form == 1;
+
+    /// <summary>
     /// Checks if the species has a Mega form.
     /// </summary>
     /// <param name="species">Entity species</param>
@@ -47,6 +54,7 @@ public static class FormInfo
         // Only continue checking if the species is in the list of Battle Only forms.
         // Some species have battle only forms as well as out-of-battle forms (other than base form).
         (ushort)Darmanitan => (form & 1) == 1, // Zen
+        (ushort)Greninja => form == 2, // Ash
         (ushort)Zygarde => form == 4, // Zygarde Complete
         (ushort)Minior => form < 7, // Minior Shields-Down
         (ushort)Mimikyu => (form & 1) == 1, // Busted
@@ -57,11 +65,16 @@ public static class FormInfo
 
     private static bool IsBattleMegaForm(ushort species, byte form) => species switch
     {
+        (ushort)Raichu => form is 2 or 3,
         (ushort)Slowbro => form == 1,
         (ushort)Zygarde => form == 5,
         (ushort)Floette => form == 6,
         (ushort)Greninja => form == 3,
-        _ => form != 0
+        (ushort)Meowstic => form is (2 or 3),
+        (ushort)Magearna => form is (2 or 3),
+        (ushort)Tatsugiri => form is (3 or 4 or 5),
+
+        _ => form != 0,
     };
 
     /// <summary>
@@ -75,11 +88,15 @@ public static class FormInfo
     public static byte GetOutOfBattleForm(ushort species, byte form, byte format) => species switch
     {
         (ushort)Darmanitan => (byte)(form & 2),
+        (ushort)Greninja when form == 2 => 1, // Ash
         (ushort)Zygarde when format > 6 => 3,
         (ushort)Minior => (byte)(form + 7),
         (ushort)Mimikyu => (byte)(form & 2),
         (ushort)Ogerpon => (byte)(form & 3),
         (ushort)Floette => 5,
+        (ushort)Tatsugiri => (byte)(form - 3), // Mega (form specific)
+        (ushort)Magearna => (byte)(form - 2), // Mega (form specific)
+        (ushort)Meowstic => (byte)(form - 2), // Mega (gendered)
         _ => 0,
     };
 
@@ -120,7 +137,7 @@ public static class FormInfo
             {
                 EntityContext.Gen6 => false,
                 EntityContext.Gen7 => newForm >= 2 || (oldForm == 1 && newForm == 0),
-                EntityContext.Gen9a => newForm >= 2,
+                EntityContext.Gen9a when origin is EntityContext.Gen9a => newForm >= 2,
                 _ => true,
             };
         }
@@ -128,7 +145,7 @@ public static class FormInfo
         {
             if (origin == EntityContext.Gen5)
                 return true; // B/W or B2/W2 change via seasons
-            if (current.Generation() >= 8)
+            if (current.IsEraHOME)
                 return true; // Via S/V change via in-game province on startup.
         }
         return false;
@@ -195,6 +212,7 @@ public static class FormInfo
         (int)Darmanitan,
         (int)Meloetta,
 
+        (int)Greninja,
         (int)Aegislash,
         (int)Xerneas,
         (int)Zygarde,
@@ -262,19 +280,35 @@ public static class FormInfo
         (int)Chandelure,
         (int)Chesnaught,
         (int)Delphox,
+        (int)Greninja,
         (int)Pyroar,
         (int)Malamar,
         (int)Barbaracle,
         (int)Dragalge,
         (int)Hawlucha,
+        (int)Zygarde,
         (int)Drampa,
         (int)Falinks,
 
         (int)Floette,
 
-        //(int)Heatran,
-        //(int)Darkrai,
-        //(int)Zeraora,
+        (int)Heatran,
+        (int)Darkrai,
+        (int)Zeraora,
+
+        (int)Raichu,
+        (int)Magearna,
+        (int)Tatsugiri,
+        (int)Meowstic,
+
+        (int)Chimecho,
+        (int)Staraptor,
+        (int)Golurk,
+        (int)Crabominable,
+        (int)Golisopod,
+        (int)Scovillain,
+        (int)Baxcalibur,
+        (int)Glimmora,
     ];
 
     /// <summary>
@@ -386,7 +420,7 @@ public static class FormInfo
     /// <param name="pi">Game specific personal info</param>
     /// <param name="species"><see cref="Species"/> ID</param>
     /// <param name="format"><see cref="PKM.Form"/> ID</param>
-    /// <returns>True if it has forms that can be provided by <see cref="FormConverter.GetFormList"/>, otherwise false for none.</returns>
+    /// <returns>True if it has forms that can be provided by <see cref="FormConverter"/>, otherwise false for none.</returns>
     public static bool HasFormSelection(IPersonalFormInfo pi, ushort species, byte format)
     {
         if (format <= 3 && species != (int)Unown)
