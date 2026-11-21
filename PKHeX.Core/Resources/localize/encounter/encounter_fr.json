@@ -8,7 +8,7 @@
     "Location": "Lieu",
     "OriginSeed": "Seed d'origine",
     "PIDType": "Type de PID",
-    "Time": "Heure",
+    "Time": "Temps écoulé",
     "FrameNewGame": "Nouvelle partie : 0x{0}, Image : {1}",
     "FrameInitial": "Initial : 0x{0}, Image : {1}",
     "SuffixDays": " (jours : {0})"
